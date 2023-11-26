@@ -1,8 +1,27 @@
 plugins {
     id 'java'
+    id 'application'
     id 'org.springframework.boot' version '3.1.5'
     id 'io.spring.dependency-management' version '1.1.3'
     id 'org.graalvm.buildtools.native' version '0.9.27'
+}
+
+apply plugin : "java"
+apply plugin: 'application'
+mainClassName = "com.flt.fltspring.FltSpringApplication"
+
+ext {
+    javaMainClass = "com.flt.fltspring.FltSpringApplication"
+}
+
+application {
+    mainClassName = javaMainClass
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
 }
 
 group = 'com.flt'
