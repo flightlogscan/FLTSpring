@@ -9,6 +9,7 @@ import com.azure.ai.formrecognizer.documentanalysis.models.Point;
 import com.azure.core.credential.AzureKeyCredential;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.polling.SyncPoller;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.model.AnalyzeImageResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -21,15 +22,13 @@ import java.util.stream.Collectors;
 public class ImageAnalyzerRestController {
 
     // TODO: Add real key here or look into using DefaultAzureCredentialBuilder
-    private static final String KEY = "fakeKey"; // TODO: Add key here
+    private static final String KEY = "";
 
     // TODO: Update to point to real Azure endpoint once it exists
-    private static final String ENDPOINT = "https://flightlogrecorder.cognitiveservices.azure.com/";
+    private static final String ENDPOINT = "https://lanceinstance.cognitiveservices.azure.com/";
 
     @RequestMapping(method = RequestMethod.POST, path = "/api/analyze")
     public ResponseEntity<String> submitAnalyzeImage(final HttpServletRequest request) {
-        // TODO: Call Azure and get real result ID
-        final String resultId = "lanceResultId";
 
         BinaryData selectionMarkDocumentData;
 
@@ -59,45 +58,62 @@ public class ImageAnalyzerRestController {
                     documentPage.getUnit());
 
             // lines
-            documentPage.getLines().forEach(documentLine ->
-                    System.out.printf("Line '%s; is within a bounding polygon %s.%n",
-                            documentLine.getContent(),
-                            getBoundingCoordinates(documentLine.getBoundingPolygon())));
+            if (documentPage.getLines() != null) {
+                documentPage.getLines().forEach(documentLine ->
+                        System.out.printf("Line '%s; is within a bounding polygon %s.%n",
+                                documentLine.getContent(),
+                                getBoundingCoordinates(documentLine.getBoundingPolygon())));
+            }
 
             // words
-            documentPage.getWords().forEach(documentWord ->
-                    System.out.printf("Word '%s' has a confidence score of %.2f%n.",
-                            documentWord.getContent(),
-                            documentWord.getConfidence()));
+            if (documentPage.getWords() != null) {
+                documentPage.getWords().forEach(documentWord ->
+                        System.out.printf("Word '%s' has a confidence score of %.2f%n.",
+                                documentWord.getContent(),
+                                documentWord.getConfidence()));
+            }
 
             // selection marks
-            documentPage.getSelectionMarks().forEach(documentSelectionMark ->
-                    System.out.printf("Selection mark is '%s' and is within a bounding polygon %s with confidence %.2f.%n",
-                            documentSelectionMark.getSelectionMarkState().toString(),
-                            getBoundingCoordinates(documentSelectionMark.getBoundingPolygon()),
-                            documentSelectionMark.getConfidence()));
+            if (documentPage.getSelectionMarks() != null) {
+                documentPage.getSelectionMarks().forEach(documentSelectionMark ->
+                        System.out.printf("Selection mark is '%s' and is within a bounding polygon %s with confidence %.2f.%n",
+                                documentSelectionMark.getSelectionMarkState().toString(),
+                                getBoundingCoordinates(documentSelectionMark.getBoundingPolygon()),
+                                documentSelectionMark.getConfidence()));
+            }
         });
 
         // tables
         List<DocumentTable> tables = analyzeLayoutResult.getTables();
-        for (int i = 0; i < tables.size(); i++) {
-            DocumentTable documentTable = tables.get(i);
-            System.out.printf("Table %d has %d rows and %d columns.%n", i, documentTable.getRowCount(),
-                    documentTable.getColumnCount());
-            documentTable.getCells().forEach(documentTableCell -> {
-                System.out.printf("Cell '%s', has row index %d and column index %d.%n", documentTableCell.getContent(),
-                        documentTableCell.getRowIndex(), documentTableCell.getColumnIndex());
-            });
-            System.out.println();
+        if (tables != null) {
+            for (int i = 0; i < tables.size(); i++) {
+                DocumentTable documentTable = tables.get(i);
+                System.out.printf("Table %d has %d rows and %d columns.%n", i, documentTable.getRowCount(),
+                        documentTable.getColumnCount());
+                documentTable.getCells().forEach(documentTableCell -> {
+                    System.out.printf("Cell '%s', has row index %d and column index %d.%n", documentTableCell.getContent(),
+                            documentTableCell.getRowIndex(), documentTableCell.getColumnIndex());
+                });
+                System.out.println();
+            }
         }
 
         // styles
-        analyzeLayoutResult.getStyles().forEach(documentStyle
-                -> System.out.printf("Document is handwritten %s%n.", documentStyle.isHandwritten()));
+        if (analyzeLayoutResult.getStyles() != null) {
+            analyzeLayoutResult.getStyles().forEach(documentStyle
+                    -> System.out.printf("Document is handwritten %s%n.", documentStyle.isHandwritten()));
+        }
 
+        final ObjectMapper objectMapper = new ObjectMapper();
+        String resultString = "";
+        try {
+            resultString = objectMapper.writeValueAsString(analyzeLayoutResult);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         // This result ID is used to poll for results
-        return ResponseEntity.ok(resultId);
+        return ResponseEntity.ok(resultString);
     }
 
     /**
