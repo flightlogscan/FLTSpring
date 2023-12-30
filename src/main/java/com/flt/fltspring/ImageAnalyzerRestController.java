@@ -21,9 +21,6 @@ import java.util.stream.Collectors;
 @RestController
 public class ImageAnalyzerRestController {
 
-    // TODO: Add real key here or look into using DefaultAzureCredentialBuilder
-    private static final String KEY = "";
-
     // TODO: Update to point to real Azure endpoint once it exists
     private static final String ENDPOINT = "https://lanceinstance.cognitiveservices.azure.com/";
 
@@ -41,7 +38,7 @@ public class ImageAnalyzerRestController {
         }
 
         final DocumentAnalysisClient client = new DocumentAnalysisClientBuilder()
-                .credential(new AzureKeyCredential(KEY))
+                .credential(new AzureKeyCredential(AWSSecretsRetriever.getSecret()))
                 .endpoint(ENDPOINT)
                 .buildClient();
 

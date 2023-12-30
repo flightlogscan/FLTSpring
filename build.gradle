@@ -53,6 +53,10 @@ dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // With the bom declared, you specify individual SDK dependencies without a version.
+    implementation(platform("software.amazon.awssdk:bom:2.22.9"))
+    implementation("software.amazon.awssdk:secretsmanager")
+    implementation 'com.google.code.gson:gson:2.10.1'
 }
 
 tasks.named('bootBuildImage') {
