@@ -36,7 +36,6 @@ public class AWSSecretsRetriever {
 
         Gson gson = new Gson();
         AzureAPIKeySecret clientSecret = gson.fromJson(secret, AzureAPIKeySecret.class);
-        System.out.println(clientSecret.getClientSecret());
 
         return clientSecret.getClientSecret();
     }

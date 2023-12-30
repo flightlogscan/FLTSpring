@@ -57,6 +57,7 @@ dependencies {
     implementation(platform("software.amazon.awssdk:bom:2.22.9"))
     implementation("software.amazon.awssdk:secretsmanager")
     implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
 }
 
 tasks.named('bootBuildImage') {
