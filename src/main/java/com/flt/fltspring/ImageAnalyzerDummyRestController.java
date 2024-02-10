@@ -9,21 +9,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Enumeration;
 
 @RestController
 public class ImageAnalyzerDummyRestController {
 
     @RequestMapping(method = RequestMethod.POST, path = "/api/analyze/dummy")
     public ResponseEntity<String> submitAnalyzeImageDummy(final HttpServletRequest request) {
-
-        System.out.println("method: " +request.getMethod());
-
-        Enumeration<String> headerNames = request.getHeaderNames();
-        while(headerNames.hasMoreElements()) {
-            String headerName = headerNames.nextElement();
-            System.out.println("Header Name - " + headerName + ", Value - " + request.getHeader(headerName));
-        }
 
         File file = new File("dummyResponse.txt");
         String data = "";
@@ -35,5 +26,4 @@ public class ImageAnalyzerDummyRestController {
 
         return ResponseEntity.ok(data);
     }
-
 }
