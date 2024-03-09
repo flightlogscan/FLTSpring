@@ -1,4 +1,4 @@
-package com.flt.fltspring.model;
+package com.flt.fltspring.secret;
 
 import com.google.gson.annotations.SerializedName;
 import lombok.Getter;
