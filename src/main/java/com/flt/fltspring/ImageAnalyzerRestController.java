@@ -10,7 +10,7 @@ import com.azure.core.credential.AzureKeyCredential;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.polling.SyncPoller;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flt.fltspring.model.AnalyzeImageResponse;
+import com.flt.fltspring.secret.AzureSecretRetriever;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -37,7 +37,7 @@ public class ImageAnalyzerRestController {
         }
 
         final DocumentAnalysisClient client = new DocumentAnalysisClientBuilder()
-                .credential(new AzureKeyCredential(AWSSecretsRetriever.getSecret()))
+                .credential(new AzureKeyCredential(AzureSecretRetriever.getSecret()))
                 .endpoint(ENDPOINT)
                 .buildClient();
 

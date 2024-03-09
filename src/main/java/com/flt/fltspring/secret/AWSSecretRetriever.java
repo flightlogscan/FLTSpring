@@ -1,16 +1,13 @@
-package com.flt.fltspring;
+package com.flt.fltspring.secret;
 
-import com.flt.fltspring.model.AzureAPIKeySecret;
-import com.google.gson.Gson;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
-public class AWSSecretsRetriever {
-    public static String getSecret() {
+public class AWSSecretRetriever {
 
-        String secretName = "lanceinstance_formrecognizer_key";
+    public static String getSecretString(String secretName) {
         Region region = Region.of("us-east-1");
 
         // Create a Secrets Manager client
@@ -32,11 +29,6 @@ public class AWSSecretsRetriever {
             throw e;
         }
 
-        String secret = getSecretValueResponse.secretString();
-
-        Gson gson = new Gson();
-        AzureAPIKeySecret clientSecret = gson.fromJson(secret, AzureAPIKeySecret.class);
-
-        return clientSecret.getClientSecret();
+        return getSecretValueResponse.secretString();
     }
 }
