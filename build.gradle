@@ -59,6 +59,14 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'com.google.firebase:firebase-admin:9.2.0'
     implementation 'commons-io:commons-io:+'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'javax.cache:cache-api'
+    implementation 'com.github.ben-manes.caffeine:caffeine:2.8.2'
+    implementation 'com.github.ben-manes.caffeine:jcache:2.8.2'
+    implementation group: 'com.giffing.bucket4j.spring.boot.starter', name: 'bucket4j-spring-boot-starter', version: '0.12.7'
+//    implementation 'com.giffing.bucket4j.spring.boot.starter:bucket4j-spring-boot-starter:0.8.1'
+
 }
 
 tasks.named('bootBuildImage') {

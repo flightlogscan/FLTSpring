@@ -2,6 +2,7 @@ package com.flt.fltspring;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.io.FileUtils;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -11,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 
 @RestController
+@EnableCaching
 public class ImageAnalyzerDummyRestController {
 
     @RequestMapping(method = RequestMethod.POST, path = "/api/analyze/dummy")
