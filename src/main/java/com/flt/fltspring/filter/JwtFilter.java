@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 
 @Component
-@EnableCaching
 @Order(1)
+@EnableCaching
 public class JwtFilter implements Filter {
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain filterChain)

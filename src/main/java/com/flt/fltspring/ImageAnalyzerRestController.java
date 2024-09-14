@@ -12,6 +12,7 @@ import com.azure.core.util.polling.SyncPoller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.secret.AzureSecretRetriever;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
+@EnableCaching
 public class ImageAnalyzerRestController {
 
     private static final String ENDPOINT = "https://lanceinstance.cognitiveservices.azure.com/";
@@ -118,21 +120,4 @@ public class ImageAnalyzerRestController {
         return boundingPolygon.stream().map(point -> String.format("[%.2f, %.2f]", point.getX(),
                 point.getY())).collect(Collectors.joining(", "));
     }
-
-//    // TODO: We may not need this API if we do everything synchronously in the other one
-//    @RequestMapping(method = RequestMethod.GET, path = "/api/analyze/results/{resultId}")
-//    public ResponseEntity<AnalyzeImageResponse> getAnalysisResults(@PathVariable final String resultId) {
-//        // TODO: Call Azure and get real result status and data
-//        final String status = "RUNNING";
-//        final String rawResults = "{}";
-//
-//        final AnalyzeImageResponse response = AnalyzeImageResponse.builder()
-//                                                                  .status(status)
-//                                                                  .rawResults(rawResults)
-//                                                                  .build();
-//;
-//        // This result ID is used to poll for results
-//        return ResponseEntity.ok(response);
-//    }
-
 }
