@@ -2,10 +2,8 @@ package com.flt.fltspring;
 
 import com.azure.ai.documentintelligence.DocumentIntelligenceClient;
 import com.azure.ai.documentintelligence.DocumentIntelligenceClientBuilder;
-import com.azure.ai.documentintelligence.models.AnalyzeResult;
-import com.azure.ai.documentintelligence.models.DocumentTable;
+import com.azure.ai.documentintelligence.models.*;
 import com.azure.core.credential.AzureKeyCredential;
-import com.azure.core.http.rest.RequestOptions;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.polling.SyncPoller;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -27,7 +26,6 @@ public class ImageAnalyzerRestController {
 
     @RequestMapping(method = RequestMethod.POST, path = "/api/analyze")
     public ResponseEntity<String> submitAnalyzeImage(final HttpServletRequest request) {
-
         BinaryData selectionMarkDocumentData;
 
         try {
@@ -43,31 +41,35 @@ public class ImageAnalyzerRestController {
                 .endpoint(ENDPOINT)
                 .buildClient();
 
-        // Create RequestOptions and set base64 content
-        RequestOptions requestOptions = new RequestOptions()
-                .addHeader("Content-Type", "application/json")
-                .setBody(selectionMarkDocumentData); // This is where the document data goes
+        // Create AnalyzeDocumentRequest
+        AnalyzeDocumentRequest analyzeRequest = new AnalyzeDocumentRequest()
+                .setBase64Source(selectionMarkDocumentData.toBytes()); // Set the Base64 content
 
-        // Begin document analysis and poll for result
-        SyncPoller<BinaryData, BinaryData> analyzeLayoutResultPoller =
-                client.beginAnalyzeDocument("prebuilt-layout", requestOptions);
+        // Set parameters
+        String modelId = "prebuilt-layout"; // or the appropriate model ID
+        String pages = "1"; // Specify the pages to analyze, e.g., "1" for the first page
+        String locale = "en-US"; // Set the locale
+        StringIndexType stringIndexType = StringIndexType.UTF16CODE_UNIT; // Choose the appropriate string index type
+        List<AnalyzeOutputOption> outputOptions = Collections.emptyList(); // Set desired output options
 
-        System.out.println(client);
+        // Begin document analysis
+        SyncPoller<AnalyzeResultOperation, AnalyzeResult> analyzePoller = client.beginAnalyzeDocument(
+                modelId,
+                pages,
+                locale,
+                stringIndexType,
+                Collections.singletonList(DocumentAnalysisFeature.KEY_VALUE_PAIRS), // Adjust features as needed
+                null, // Optional query fields
+                null, // Optional output content format
+                outputOptions,
+                analyzeRequest
+        );
 
-        // Get the final result as BinaryData
-        BinaryData binaryResult = analyzeLayoutResultPoller.getFinalResult();
-
-        // Deserialize BinaryData into AnalyzeResult using ObjectMapper
-        AnalyzeResult analyzeLayoutResult;
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            analyzeLayoutResult = objectMapper.readValue(binaryResult.toString(), AnalyzeResult.class);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to deserialize analyze result.", e);
-        }
+        // Get the final result
+        AnalyzeResult analyzeResult = analyzePoller.getFinalResult();
 
         // pages
-        analyzeLayoutResult.getPages().forEach(documentPage -> {
+        analyzeResult.getPages().forEach(documentPage -> {
             System.out.printf("Page has width: %.2f and height: %.2f, measured with unit: %s%n",
                     documentPage.getWidth(),
                     documentPage.getHeight(),
@@ -83,7 +85,7 @@ public class ImageAnalyzerRestController {
         });
 
         // tables
-        List<DocumentTable> tables = analyzeLayoutResult.getTables();
+        List<DocumentTable> tables = analyzeResult.getTables();
         if (tables != null) {
             for (int i = 0; i < tables.size(); i++) {
                 DocumentTable documentTable = tables.get(i);
@@ -98,15 +100,15 @@ public class ImageAnalyzerRestController {
         }
 
         // styles
-        if (analyzeLayoutResult.getStyles() != null) {
-            analyzeLayoutResult.getStyles().forEach(documentStyle
+        if (analyzeResult.getStyles() != null) {
+            analyzeResult.getStyles().forEach(documentStyle
                     -> System.out.printf("Document is handwritten %s%n.", documentStyle.isHandwritten()));
         }
 
         final ObjectMapper objectMapper = new ObjectMapper();
         String resultString = "";
         try {
-            resultString = objectMapper.writeValueAsString(analyzeLayoutResult);
+            resultString = objectMapper.writeValueAsString(analyzeResult);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
