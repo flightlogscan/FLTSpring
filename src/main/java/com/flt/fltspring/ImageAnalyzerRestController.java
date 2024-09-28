@@ -1,12 +1,11 @@
 package com.flt.fltspring;
 
-import com.azure.ai.formrecognizer.documentanalysis.DocumentAnalysisClient;
-import com.azure.ai.formrecognizer.documentanalysis.DocumentAnalysisClientBuilder;
-import com.azure.ai.formrecognizer.documentanalysis.models.AnalyzeResult;
-import com.azure.ai.formrecognizer.documentanalysis.models.DocumentTable;
-import com.azure.ai.formrecognizer.documentanalysis.models.OperationResult;
-import com.azure.ai.formrecognizer.documentanalysis.models.Point;
+import com.azure.ai.documentintelligence.DocumentIntelligenceClient;
+import com.azure.ai.documentintelligence.DocumentIntelligenceClientBuilder;
+import com.azure.ai.documentintelligence.models.AnalyzeResult;
+import com.azure.ai.documentintelligence.models.DocumentTable;
 import com.azure.core.credential.AzureKeyCredential;
+import com.azure.core.http.rest.RequestOptions;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.polling.SyncPoller;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,10 +13,11 @@ import com.flt.fltspring.secret.AzureSecretRetriever;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @EnableCaching
@@ -38,15 +38,33 @@ public class ImageAnalyzerRestController {
             throw new RuntimeException(e);
         }
 
-        final DocumentAnalysisClient client = new DocumentAnalysisClientBuilder()
+        final DocumentIntelligenceClient client = new DocumentIntelligenceClientBuilder()
                 .credential(new AzureKeyCredential(AzureSecretRetriever.getSecret()))
                 .endpoint(ENDPOINT)
                 .buildClient();
 
-        SyncPoller<OperationResult, AnalyzeResult> analyzeLayoutResultPoller =
-                client.beginAnalyzeDocument("prebuilt-layout", selectionMarkDocumentData);
+        // Create RequestOptions and set base64 content
+        RequestOptions requestOptions = new RequestOptions()
+                .addHeader("Content-Type", "application/json")
+                .setBody(selectionMarkDocumentData); // This is where the document data goes
 
-        AnalyzeResult analyzeLayoutResult = analyzeLayoutResultPoller.getFinalResult();
+        // Begin document analysis and poll for result
+        SyncPoller<BinaryData, BinaryData> analyzeLayoutResultPoller =
+                client.beginAnalyzeDocument("prebuilt-layout", requestOptions);
+
+        System.out.println(client);
+
+        // Get the final result as BinaryData
+        BinaryData binaryResult = analyzeLayoutResultPoller.getFinalResult();
+
+        // Deserialize BinaryData into AnalyzeResult using ObjectMapper
+        AnalyzeResult analyzeLayoutResult;
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            analyzeLayoutResult = objectMapper.readValue(binaryResult.toString(), AnalyzeResult.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to deserialize analyze result.", e);
+        }
 
         // pages
         analyzeLayoutResult.getPages().forEach(documentPage -> {
@@ -55,29 +73,12 @@ public class ImageAnalyzerRestController {
                     documentPage.getHeight(),
                     documentPage.getUnit());
 
-            // lines
-            if (documentPage.getLines() != null) {
-                documentPage.getLines().forEach(documentLine ->
-                        System.out.printf("Line '%s; is within a bounding polygon %s.%n",
-                                documentLine.getContent(),
-                                getBoundingCoordinates(documentLine.getBoundingPolygon())));
-            }
-
             // words
             if (documentPage.getWords() != null) {
                 documentPage.getWords().forEach(documentWord ->
                         System.out.printf("Word '%s' has a confidence score of %.2f%n.",
                                 documentWord.getContent(),
                                 documentWord.getConfidence()));
-            }
-
-            // selection marks
-            if (documentPage.getSelectionMarks() != null) {
-                documentPage.getSelectionMarks().forEach(documentSelectionMark ->
-                        System.out.printf("Selection mark is '%s' and is within a bounding polygon %s with confidence %.2f.%n",
-                                documentSelectionMark.getSelectionMarkState().toString(),
-                                getBoundingCoordinates(documentSelectionMark.getBoundingPolygon()),
-                                documentSelectionMark.getConfidence()));
             }
         });
 
@@ -111,13 +112,5 @@ public class ImageAnalyzerRestController {
         }
 
         return ResponseEntity.ok(resultString);
-    }
-
-    /**
-     * Utility function to get the bounding polygon coordinates.
-     */
-    private static String getBoundingCoordinates(List<Point> boundingPolygon) {
-        return boundingPolygon.stream().map(point -> String.format("[%.2f, %.2f]", point.getX(),
-                point.getY())).collect(Collectors.joining(", "));
     }
 }
