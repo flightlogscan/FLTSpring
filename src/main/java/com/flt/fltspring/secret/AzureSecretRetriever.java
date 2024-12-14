@@ -7,12 +7,14 @@ import static com.flt.fltspring.secret.AWSSecretRetriever.getSecretString;
 public class AzureSecretRetriever {
     public static String getSecret() {
 
-        String secretName = "lanceinstance_formrecognizer_key";
+        String secretName = "flight-log-scan-document-ai-secret";
         String secret = getSecretString(secretName);
 
         Gson gson = new Gson();
-        AzureAPIKeySecret clientSecret = gson.fromJson(secret, AzureAPIKeySecret.class);
+        final AzureAPIKeySecret clientSecret;
+        clientSecret = gson.fromJson(secret, AzureAPIKeySecret.class);
 
+        System.out.println("clientSecret: " + clientSecret.getClientSecret());
         return clientSecret.getClientSecret();
     }
 }
