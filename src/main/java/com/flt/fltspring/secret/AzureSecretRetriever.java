@@ -14,7 +14,6 @@ public class AzureSecretRetriever {
         final AzureAPIKeySecret clientSecret;
         clientSecret = gson.fromJson(secret, AzureAPIKeySecret.class);
 
-        System.out.println("clientSecret: " + clientSecret.getClientSecret());
         return clientSecret.getClientSecret();
     }
 }
