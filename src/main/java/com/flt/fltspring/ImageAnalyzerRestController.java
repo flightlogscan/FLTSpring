@@ -28,7 +28,7 @@ import java.util.List;
 @EnableCaching
 public class ImageAnalyzerRestController {
 
-    private static final String ENDPOINT = "https://lanceinstance.cognitiveservices.azure.com/";
+    private static final String ENDPOINT = "https://flight-log-scan.cognitiveservices.azure.com/";
 
     @RequestMapping(method = RequestMethod.POST, path = "/api/analyze")
     public ResponseEntity<String> submitAnalyzeImage(final HttpServletRequest request) {
@@ -112,7 +112,7 @@ public class ImageAnalyzerRestController {
         }
 
         final ObjectMapper objectMapper = new ObjectMapper();
-        String resultString = "";
+        String resultString;
         try {
             resultString = objectMapper.writeValueAsString(analyzeResult);
         } catch (Exception e) {
