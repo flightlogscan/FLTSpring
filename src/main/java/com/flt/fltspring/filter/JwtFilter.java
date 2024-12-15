@@ -34,9 +34,15 @@ public class JwtFilter implements Filter {
         final String token = authHeader.substring(7);
 
         try {
-            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(token);
-            String uid = decodedToken.getUid();
+            final FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(token);
+            final String uid = decodedToken.getUid();
+            final String email = decodedToken.getEmail();
+
+            // HttpServletRequest is a server side object so an attacker cannot set this attribute
+            request.setAttribute("firebaseEmail", email);
+
             System.out.println("Uid: " + uid);
+            System.out.println("Email: " + email);
         } catch (FirebaseAuthException e) {
             System.out.println("Firebase auth exception: " + e);
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
