@@ -21,6 +21,7 @@ public class FltSpringApplication {
                 .setCredentials(GoogleCredentials.fromStream(FirebaseSecretRetriever.getSecretStream()))
                 .build();
         FirebaseApp.initializeApp(options);
+        System.out.println("Finished initializing firebase app");
         SpringApplication.run(FltSpringApplication.class, args);
     }
 }

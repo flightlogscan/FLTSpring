@@ -7,7 +7,7 @@ import com.azure.ai.documentintelligence.models.AnalyzeOutputOption;
 import com.azure.ai.documentintelligence.models.AnalyzeResult;
 import com.azure.ai.documentintelligence.models.AnalyzeResultOperation;
 import com.azure.ai.documentintelligence.models.DocumentAnalysisFeature;
-import com.azure.ai.documentintelligence.models.DocumentTable;
+//import com.azure.ai.documentintelligence.models.DocumentTable;
 import com.azure.ai.documentintelligence.models.StringIndexType;
 import com.azure.core.credential.AzureKeyCredential;
 import com.azure.core.util.BinaryData;
@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -38,7 +39,8 @@ public class ImageAnalyzerRestController {
             selectionMarkDocumentData = BinaryData.fromBytes(request.getInputStream().readAllBytes());
             System.out.println("Successfully read binary data from input stream");
             System.out.printf(String.format("Length of binary data: %d", selectionMarkDocumentData.getLength()));
-        } catch (Exception e) {
+        } catch (IOException e) {
+            System.out.println("Failed to read servlet request input stream.");
             throw new RuntimeException(e);
         }
 
@@ -47,9 +49,8 @@ public class ImageAnalyzerRestController {
                 .endpoint(ENDPOINT)
                 .buildClient();
 
-        // Create AnalyzeDocumentRequest
-        AnalyzeDocumentRequest analyzeRequest = new AnalyzeDocumentRequest()
-                .setBase64Source(selectionMarkDocumentData.toBytes()); // Set the Base64 content
+        final AnalyzeDocumentRequest analyzeRequest = new AnalyzeDocumentRequest()
+                .setBase64Source(selectionMarkDocumentData.toBytes());
 
         // Set parameters
         String modelId = "prebuilt-layout"; // or the appropriate model ID
@@ -58,8 +59,7 @@ public class ImageAnalyzerRestController {
         StringIndexType stringIndexType = StringIndexType.UTF16CODE_UNIT; // Choose the appropriate string index type
         List<AnalyzeOutputOption> outputOptions = Collections.emptyList(); // Set desired output options
 
-        // Begin document analysis
-        SyncPoller<AnalyzeResultOperation, AnalyzeResult> analyzePoller = client.beginAnalyzeDocument(
+        final SyncPoller<AnalyzeResultOperation, AnalyzeResult> analyzePoller = client.beginAnalyzeDocument(
                 modelId,
                 pages,
                 locale,
@@ -71,48 +71,10 @@ public class ImageAnalyzerRestController {
                 analyzeRequest
         );
 
-        // Get the final result
-        AnalyzeResult analyzeResult = analyzePoller.getFinalResult();
-
-        // pages
-        analyzeResult.getPages().forEach(documentPage -> {
-            System.out.printf("Page has width: %.2f and height: %.2f, measured with unit: %s%n",
-                    documentPage.getWidth(),
-                    documentPage.getHeight(),
-                    documentPage.getUnit());
-
-            // words
-            if (documentPage.getWords() != null) {
-                documentPage.getWords().forEach(documentWord ->
-                        System.out.printf("Word '%s' has a confidence score of %.2f%n.",
-                                documentWord.getContent(),
-                                documentWord.getConfidence()));
-            }
-        });
-
-        // tables
-        List<DocumentTable> tables = analyzeResult.getTables();
-        if (tables != null) {
-            for (int i = 0; i < tables.size(); i++) {
-                DocumentTable documentTable = tables.get(i);
-                System.out.printf("Table %d has %d rows and %d columns.%n", i, documentTable.getRowCount(),
-                        documentTable.getColumnCount());
-                documentTable.getCells().forEach(documentTableCell -> {
-                    System.out.printf("Cell '%s', has row index %d and column index %d.%n", documentTableCell.getContent(),
-                            documentTableCell.getRowIndex(), documentTableCell.getColumnIndex());
-                });
-                System.out.println();
-            }
-        }
-
-        // styles
-        if (analyzeResult.getStyles() != null) {
-            analyzeResult.getStyles().forEach(documentStyle
-                    -> System.out.printf("Document is handwritten %s%n.", documentStyle.isHandwritten()));
-        }
+        final AnalyzeResult analyzeResult = analyzePoller.getFinalResult();
 
         final ObjectMapper objectMapper = new ObjectMapper();
-        String resultString;
+        final String resultString;
         try {
             resultString = objectMapper.writeValueAsString(analyzeResult);
         } catch (Exception e) {

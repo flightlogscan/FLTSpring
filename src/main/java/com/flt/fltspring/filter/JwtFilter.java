@@ -31,6 +31,7 @@ public class JwtFilter implements Filter {
             return;
         }
 
+        // Remove "Bearer " which is 7 chars
         final String token = authHeader.substring(7);
 
         try {

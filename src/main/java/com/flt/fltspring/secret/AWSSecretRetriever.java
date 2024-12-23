@@ -26,6 +26,7 @@ public class AWSSecretRetriever {
         } catch (Exception e) {
             // For a list of exceptions thrown, see
             // https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+            System.out.println("Error getting secret with name: " + secretName);
             throw e;
         }
 

@@ -31,7 +31,7 @@ public class ImageAnalyzerDummyRestController {
         try {
             data = FileUtils.readFileToString(file, "UTF-8");
         } catch (final IOException e) {
-            System.out.println("IOException: " + e);
+            System.out.println("IOException parsing dummy response: " + e);
         }
 
         return ResponseEntity.ok(data);
