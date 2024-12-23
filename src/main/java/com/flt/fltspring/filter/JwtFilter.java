@@ -22,6 +22,13 @@ public class JwtFilter implements Filter {
 
         final HttpServletRequest request = (HttpServletRequest) req;
         final HttpServletResponse response = (HttpServletResponse) res;
+
+        // Skip JWT processing for /ping endpoint
+        if (request.getRequestURI().equals("/api/ping")) {
+            filterChain.doFilter(req, res);
+            return;
+        }
+
         final String authHeader = request.getHeader("Authorization");
         System.out.println(authHeader);
 
