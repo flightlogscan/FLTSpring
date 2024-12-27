@@ -2,6 +2,7 @@ package com.flt.fltspring;
 
 import com.flt.fltspring.claims.AdminAuthenticator;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,7 @@ import java.io.IOException;
 
 @RestController
 @EnableCaching
+@Slf4j
 public class ImageAnalyzerDummyRestController {
 
     @RequestMapping(method = RequestMethod.POST, path = "/api/analyze/dummy")
@@ -31,7 +33,8 @@ public class ImageAnalyzerDummyRestController {
         try {
             data = FileUtils.readFileToString(file, "UTF-8");
         } catch (final IOException e) {
-            System.out.println("IOException parsing dummy response: " + e);
+            // Only warn in dummy response API
+            log.warn("IOException parsing dummy response: " + e);
         }
 
         return ResponseEntity.ok(data);

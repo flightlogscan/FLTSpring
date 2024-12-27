@@ -1,10 +1,12 @@
 package com.flt.fltspring.secret;
 
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
+@Slf4j
 public class AWSSecretRetriever {
 
     public static String getSecretString(String secretName) {
@@ -26,7 +28,7 @@ public class AWSSecretRetriever {
         } catch (Exception e) {
             // For a list of exceptions thrown, see
             // https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-            System.out.println("Error getting secret with name: " + secretName);
+            log.error("Error getting secret with name: " + secretName);
             throw e;
         }
 

@@ -15,6 +15,7 @@ import com.azure.core.util.polling.SyncPoller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.secret.AzureSecretRetriever;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +28,7 @@ import java.util.List;
 
 @RestController
 @EnableCaching
+@Slf4j
 public class ImageAnalyzerRestController {
 
     private static final String ENDPOINT = "https://flight-log-scan.cognitiveservices.azure.com/";
@@ -37,10 +39,10 @@ public class ImageAnalyzerRestController {
 
         try {
             selectionMarkDocumentData = BinaryData.fromBytes(request.getInputStream().readAllBytes());
-            System.out.println("Successfully read binary data from input stream");
-            System.out.printf(String.format("Length of binary data: %d", selectionMarkDocumentData.getLength()));
+            log.info("Successfully read binary data from input stream");
+            log.info(String.format("Length of binary data: %d", selectionMarkDocumentData.getLength()));
         } catch (IOException e) {
-            System.out.println("Failed to read servlet request input stream.");
+            log.error("Failed to read servlet request input stream.");
             throw new RuntimeException(e);
         }
 

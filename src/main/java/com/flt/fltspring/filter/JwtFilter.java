@@ -6,16 +6,21 @@ import com.google.firebase.auth.FirebaseToken;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Component
 @Order(1)
 @EnableCaching
+@Slf4j
 public class JwtFilter implements Filter {
+    private static final String REQUEST_ID = "requestId";
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain filterChain)
             throws IOException, ServletException {
@@ -23,40 +28,48 @@ public class JwtFilter implements Filter {
         final HttpServletRequest request = (HttpServletRequest) req;
         final HttpServletResponse response = (HttpServletResponse) res;
 
-        // Skip JWT processing for /ping endpoint
-        if (request.getRequestURI().equals("/api/ping")) {
-            filterChain.doFilter(req, res);
-            return;
-        }
-
-        final String authHeader = request.getHeader("Authorization");
-        System.out.println(authHeader);
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            System.out.println("Invalid authHeader: " + authHeader);
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
-        }
-
-        // Remove "Bearer " which is 7 chars
-        final String token = authHeader.substring(7);
+        // Insert request id into context (see application.yml for where it's used)
+        final String requestId = UUID.randomUUID().toString();
+        MDC.put(REQUEST_ID, requestId);
 
         try {
-            final FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(token);
-            final String uid = decodedToken.getUid();
-            final String email = decodedToken.getEmail();
+            // Skip JWT processing for /ping endpoint
+            if (request.getRequestURI().equals("/api/ping")) {
+                filterChain.doFilter(req, res);
+                return;
+            }
 
-            // HttpServletRequest is a server side object so an attacker cannot set this attribute
-            request.setAttribute("firebaseEmail", email);
+            final String authHeader = request.getHeader("Authorization");
+            log.info(authHeader);
 
-            System.out.println("Uid: " + uid);
-            System.out.println("Email: " + email);
-        } catch (FirebaseAuthException e) {
-            System.out.println("Firebase auth exception: " + e);
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                log.warn("Invalid authHeader: " + authHeader);
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
+            }
+
+            // Remove "Bearer " which is 7 chars
+            final String token = authHeader.substring(7);
+
+            try {
+                final FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(token);
+                final String uid = decodedToken.getUid();
+                final String email = decodedToken.getEmail();
+
+                // HttpServletRequest is a server side object so an attacker cannot set this attribute
+                request.setAttribute("firebaseEmail", email);
+
+                log.info("Uid: " + uid);
+                log.info("Email: " + email);
+            } catch (FirebaseAuthException e) {
+                log.error("Firebase auth exception: " + e);
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
+            }
+
+            filterChain.doFilter(req, res);
+        } finally {
+            MDC.remove(REQUEST_ID);
         }
-
-        filterChain.doFilter(req, res);
     }
 }

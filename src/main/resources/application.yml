@@ -1,5 +1,8 @@
 logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%X{requestId}] - %msg%n"
   level:
+    root: INFO
     com.giffing.bucket4j: debug
 management:
   endpoints:
