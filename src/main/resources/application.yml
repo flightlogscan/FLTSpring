@@ -1,6 +1,12 @@
 logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%X{requestId}] - %msg%n"
+  file:
+    name: /var/log/myapp/application.log
+    logback:
+      rollingpolicy:
+        max-file-size: 10MB
+        max-history: 7
   level:
     root: INFO
     com.giffing.bucket4j: debug
