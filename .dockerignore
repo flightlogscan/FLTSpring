@@ -1,0 +1,16 @@
+src/main/resources/credentials/
+.gradle
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+bin/
+build/
+.vscode
+.settings
+.classpath
+.project
+.springBeans
+.sts4-cache
+HELP.md
