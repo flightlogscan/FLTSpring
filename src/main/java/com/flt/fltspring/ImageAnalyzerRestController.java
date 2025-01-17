@@ -7,15 +7,14 @@ import com.azure.ai.documentintelligence.models.AnalyzeOutputOption;
 import com.azure.ai.documentintelligence.models.AnalyzeResult;
 import com.azure.ai.documentintelligence.models.AnalyzeResultOperation;
 import com.azure.ai.documentintelligence.models.DocumentAnalysisFeature;
-//import com.azure.ai.documentintelligence.models.DocumentTable;
 import com.azure.ai.documentintelligence.models.StringIndexType;
 import com.azure.core.credential.AzureKeyCredential;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.polling.SyncPoller;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flt.fltspring.secret.AzureSecretRetriever;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +30,8 @@ import java.util.List;
 @Slf4j
 public class ImageAnalyzerRestController {
 
+    @Autowired
+    private String flsDocumentAiSecret;
     private static final String ENDPOINT = "https://flight-log-scan.cognitiveservices.azure.com/";
 
     @RequestMapping(method = RequestMethod.POST, path = "/api/analyze")
@@ -47,7 +48,7 @@ public class ImageAnalyzerRestController {
         }
 
         final DocumentIntelligenceClient client = new DocumentIntelligenceClientBuilder()
-                .credential(new AzureKeyCredential(AzureSecretRetriever.getSecret()))
+                .credential(new AzureKeyCredential(flsDocumentAiSecret))
                 .endpoint(ENDPOINT)
                 .buildClient();
 

@@ -21,8 +21,8 @@ public class ImageAnalyzerDummyRestController {
     @RequestMapping(method = RequestMethod.POST, path = "/api/analyze/dummy")
     public ResponseEntity<String> submitAnalyzeImageDummy(final HttpServletRequest request) {
 
+        // Only admins have access to dummy api
         final String firebaseEmail = (String) request.getAttribute("firebaseEmail");
-
         if(!AdminAuthenticator.isAdmin(firebaseEmail)) {
             // Throw a NOT FOUND instead of UNAUTHORIZED because we don't want to confirm to callers if this API exists
             return ResponseEntity.notFound().build();
