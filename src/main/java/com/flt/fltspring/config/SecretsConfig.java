@@ -20,7 +20,6 @@ public class SecretsConfig {
 
     @PostConstruct
     public void initializeSecrets() throws Exception {
-        System.out.println("dotenvToken before usage: " + dotenvToken); // Debug line
 
         String token = System.getenv("API_TOKEN");
         if (token == null) {
@@ -43,8 +42,6 @@ public class SecretsConfig {
         null
         ).getSecretValue();
 
-        System.out.println("Firebase secret: " + this.firebaseAdminSecret);
-
         this.flsDocumentAiSecret = sdk.Secrets().GetSecret(
                 "FLS_DOCUMENT_AI",
                 FLIGHT_LOG_SCAN_INFISICAL_PROJECT_ID,
@@ -54,8 +51,6 @@ public class SecretsConfig {
                 null,
                 null
         ).getSecretValue();
-
-        System.out.println("fls doc ai secret: " + this.flsDocumentAiSecret);
     }
 
     @Bean
