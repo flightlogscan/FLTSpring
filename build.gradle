@@ -1,7 +1,7 @@
 plugins {
     id 'java'
     id 'application'
-    id 'org.springframework.boot' version '3.1.5'
+    id 'org.springframework.boot' version '3.4.1'
     id 'io.spring.dependency-management' version '1.1.3'
     id 'org.graalvm.buildtools.native' version '0.9.27'
 }
@@ -28,7 +28,7 @@ group = 'com.flt'
 version = '0.0.1-SNAPSHOT'
 
 java {
-    sourceCompatibility = '17'
+    sourceCompatibility = '23'
 }
 
 configurations {
@@ -53,10 +53,7 @@ dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    // With the bom declared, you specify individual SDK dependencies without a version.
-    implementation(platform("software.amazon.awssdk:bom:2.22.9"))
-    implementation("software.amazon.awssdk:secretsmanager")
-    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'com.google.code.gson:gson:2.11.0'
     implementation 'com.google.firebase:firebase-admin:9.2.0'
     implementation 'commons-io:commons-io:+'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -65,8 +62,8 @@ dependencies {
     implementation 'com.github.ben-manes.caffeine:caffeine:2.8.2'
     implementation 'com.github.ben-manes.caffeine:jcache:2.8.2'
     implementation group: 'com.giffing.bucket4j.spring.boot.starter', name: 'bucket4j-spring-boot-starter', version: '0.12.7'
-//    implementation 'com.giffing.bucket4j.spring.boot.starter:bucket4j-spring-boot-starter:0.8.1'
-
+    implementation 'com.infisical:sdk:3.0.1'
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 }
 
 tasks.named('bootBuildImage') {

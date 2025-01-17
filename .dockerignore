@@ -6,7 +6,6 @@ src/main/resources/credentials/
 *.ipr
 out/
 bin/
-build/
 .vscode
 .settings
 .classpath
