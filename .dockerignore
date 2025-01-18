@@ -13,3 +13,4 @@ bin/
 .springBeans
 .sts4-cache
 HELP.md
+.env
