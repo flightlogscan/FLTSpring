@@ -7,11 +7,15 @@ import com.azure.ai.documentintelligence.models.AnalyzeOutputOption;
 import com.azure.ai.documentintelligence.models.AnalyzeResult;
 import com.azure.ai.documentintelligence.models.AnalyzeResultOperation;
 import com.azure.ai.documentintelligence.models.DocumentAnalysisFeature;
+import com.azure.ai.documentintelligence.models.DocumentTable;
+import com.azure.ai.documentintelligence.models.DocumentTableCell;
 import com.azure.ai.documentintelligence.models.StringIndexType;
 import com.azure.core.credential.AzureKeyCredential;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.polling.SyncPoller;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flt.fltspring.model.AnalyzeImageResponse;
+import com.flt.fltspring.model.TableRow;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,8 +26,11 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @EnableCaching
@@ -35,7 +42,7 @@ public class ImageAnalyzerRestController {
     private static final String ENDPOINT = "https://flight-log-scan.cognitiveservices.azure.com/";
 
     @RequestMapping(method = RequestMethod.POST, path = "/api/analyze")
-    public ResponseEntity<String> submitAnalyzeImage(final HttpServletRequest request) {
+    public ResponseEntity<AnalyzeImageResponse> submitAnalyzeImage(final HttpServletRequest request) {
         BinaryData selectionMarkDocumentData;
 
         try {
@@ -74,7 +81,40 @@ public class ImageAnalyzerRestController {
                 analyzeRequest
         );
 
+        final List<TableRow> tableRows = new ArrayList<>();
+        final Map<Integer, Map<Integer, String>> rowData = new HashMap<>();
+        final Map<Integer, Boolean> headerRows = new HashMap<>();
+
         final AnalyzeResult analyzeResult = analyzePoller.getFinalResult();
+
+        final List<DocumentTable> documentTables = analyzeResult.getTables();
+        for (final DocumentTable documentTable : documentTables) {
+            for (final DocumentTableCell documentTableCell : documentTable.getCells()) {
+                int rowIndex = documentTableCell.getRowIndex();
+                int columnIndex = documentTableCell.getColumnIndex();
+                String content = documentTableCell.getContent();
+                boolean isHeader = "columnHeader".equals(documentTableCell.getKind());
+
+                // Initialize row data if needed
+                rowData.putIfAbsent(rowIndex, new HashMap<>());
+                rowData.get(rowIndex).put(columnIndex, content);
+
+                // Mark row as header if any cell is a header
+                if (isHeader) {
+                    headerRows.put(rowIndex, true);
+                }
+            }
+
+            // Create TableRow objects from collected data
+            rowData.forEach((rowIndex, columnData) -> {
+                TableRow tableRow = new TableRow(
+                        rowIndex,
+                        columnData,
+                        headerRows.getOrDefault(rowIndex, false)
+                );
+                tableRows.add(tableRow);
+            });
+        }
 
         final ObjectMapper objectMapper = new ObjectMapper();
         final String resultString;
@@ -84,6 +124,10 @@ public class ImageAnalyzerRestController {
             throw new RuntimeException(e);
         }
 
-        return ResponseEntity.ok(resultString);
+        final AnalyzeImageResponse analyzeImageResponse = AnalyzeImageResponse.builder()
+                .rawResults(resultString)
+                .tables(tableRows)
+                .build();
+        return ResponseEntity.ok(analyzeImageResponse);
     }
 }
