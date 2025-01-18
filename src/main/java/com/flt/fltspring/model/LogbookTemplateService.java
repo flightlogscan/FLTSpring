@@ -23,11 +23,8 @@ public class LogbookTemplateService {
         headers.put(0, new LogbookTemplate.HeaderDefinition("DATE", LogbookTemplate.DataType.DATE, true));
         headers.put(1, new LogbookTemplate.HeaderDefinition("AIRCRAFT TYPE", LogbookTemplate.DataType.TEXT, true));
         headers.put(2, new LogbookTemplate.HeaderDefinition("AIRCRAFT IDENT", LogbookTemplate.DataType.TEXT, true));
-        // Add more headers...
         jeppesen.setExpectedHeaders(headers);
         templates.put(LogbookType.JEPPESEN, jeppesen);
-
-        // Add other templates...
     }
 
     public LogbookTemplate getTemplate(LogbookType type) {
