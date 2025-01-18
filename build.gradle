@@ -28,7 +28,7 @@ group = 'com.flt'
 version = '0.0.1-SNAPSHOT'
 
 java {
-    sourceCompatibility = '23'
+    sourceCompatibility = '21'
 }
 
 configurations {
