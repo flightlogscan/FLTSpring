@@ -1,4 +1,3 @@
-src/main/resources/credentials/
 .gradle
 .idea
 *.iws
@@ -13,4 +12,4 @@ bin/
 .springBeans
 .sts4-cache
 HELP.md
-.env
+src/main/resources/.env
