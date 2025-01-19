@@ -44,5 +44,3 @@ bucket4j:
               unit: seconds
               initial-capacity: 5
               refill-speed: interval
-api:
-  token: ${API_TOKEN}

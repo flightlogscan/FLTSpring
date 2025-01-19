@@ -63,7 +63,6 @@ dependencies {
     implementation 'com.github.ben-manes.caffeine:jcache:2.8.2'
     implementation group: 'com.giffing.bucket4j.spring.boot.starter', name: 'bucket4j-spring-boot-starter', version: '0.12.7'
     implementation 'com.infisical:sdk:3.0.1'
-    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 }
 
 tasks.named('bootBuildImage') {
