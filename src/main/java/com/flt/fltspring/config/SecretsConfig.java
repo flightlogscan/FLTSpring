@@ -15,19 +15,10 @@ public class SecretsConfig {
     private String firebaseAdminSecret;
     private String flsDocumentAiSecret;
 
-    @Value("${api.token:#{null}}")
-    private String dotenvToken;
-
     @PostConstruct
     public void initializeSecrets() throws Exception {
 
         String token = System.getenv("API_TOKEN");
-        if (token == null) {
-            if (dotenvToken == null) {
-                throw new IllegalStateException("Neither API_TOKEN env var nor api.token property found");
-            }
-            token = dotenvToken;
-        }
 
         var sdk = new InfisicalSdk(new SdkConfig.Builder().build());
         sdk.Auth().SetAccessToken(token);

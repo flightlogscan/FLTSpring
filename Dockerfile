@@ -2,7 +2,8 @@
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 COPY . .
-RUN ./gradlew build --no-daemon
+ARG GRADLE_ARGS="build --no-daemon"
+RUN ./gradlew ${GRADLE_ARGS}
 
 # In multi-stage builds, only the final FROM stage is included in the final image.
 # Everything before it is temporary build context.
