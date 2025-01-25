@@ -20,16 +20,13 @@ public class DocumentAnalysisService {
     private final TableDataTransformer transformer;
 
     public TableResponseDTO analyzeDocument(AnalyzeResult analyzeResult, LogbookType logbookType) {
-        // Convert Azure result to TableRows
         List<TableRow> tableRows = convertToTableRows(analyzeResult);
+        return processTableRows(tableRows, logbookType);
+    }
 
-        // Transform data (clean/normalize)
+    public TableResponseDTO processTableRows(List<TableRow> tableRows, LogbookType logbookType) {
         List<TableRow> transformedRows = transformer.transformData(tableRows);
-
-        // Validate and correct using template
         List<TableRow> validatedRows = validationService.validateAndCorrect(transformedRows, logbookType);
-
-        // Convert to API response DTO
         return mapToResponse(validatedRows);
     }
 
