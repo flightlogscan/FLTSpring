@@ -59,10 +59,8 @@ public class ImageAnalyzerRestController {
             );
 
             // Create final response
-            final String resultString = serializeResult(analyzeResult);
             final AnalyzeImageResponse response = AnalyzeImageResponse.builder()
                     .status("SUCCESS")
-                    //.rawResults(resultString)
                     .tables(tableResponse.getRows())
                     .build();
 
