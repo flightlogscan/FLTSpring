@@ -1,9 +1,13 @@
 package com.flt.fltspring.model;
 
 import com.azure.ai.documentintelligence.models.AnalyzeResult;
-import com.azure.ai.documentintelligence.models.DocumentTable;
 import com.azure.ai.documentintelligence.models.DocumentTableCell;
 import com.azure.ai.documentintelligence.models.DocumentTableCellKind;
+import com.flt.fltspring.ImageAnalyzerDummyRestController.DummyAnalyzeResult;
+import com.flt.fltspring.ImageAnalyzerDummyRestController.DummyCell;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -43,9 +47,68 @@ public class DocumentAnalysisService {
         put("B", "8");
     }};
 
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    private static class ColumnConfig {
+        private String fieldName;
+        private int columnCount;
+        private String type;
+    }
+
+    private static final List<ColumnConfig> COLUMN_CONFIGS = List.of(
+            new ColumnConfig("DATE", 1, "STRING"),
+            new ColumnConfig("AIRCRAFT TYPE", 1, "STRING"),
+            new ColumnConfig("AIRCRAFT IDENT", 1, "STRING"),
+            new ColumnConfig("FROM", 1, "STRING"),
+            new ColumnConfig("TO", 1, "STRING"),
+            new ColumnConfig("NR INST. APP.", 1, "STRING"),
+            new ColumnConfig("REMARKS AND ENDORSEMENTS", 1, "STRING"),
+            new ColumnConfig("NR T/O", 1, "INTEGER"),
+            new ColumnConfig("NR LDG", 1, "INTEGER"),
+            new ColumnConfig("SINGLE-ENGINE LAND (DAY)", 1, "INTEGER"),
+            new ColumnConfig("SINGLE-ENGINE LAND (NIGHT)", 1, "INTEGER"),
+            new ColumnConfig("MULTI-ENGINE LAND", 2, "INTEGER"),
+            new ColumnConfig("AND CLASS", 4, "STRING"),
+            new ColumnConfig("NIGHT", 2, "INTEGER"),
+            new ColumnConfig("ACTUAL INSTRUMENT", 2, "INTEGER"),
+            new ColumnConfig("SIMULATED INSTRUMENT (HOOD)", 2, "INTEGER"),
+            new ColumnConfig("FLIGHT SIMULATOR", 2, "INTEGER"),
+            new ColumnConfig("CROSS COUNTRY", 2, "INTEGER"),
+            new ColumnConfig("AS FLIGHT INSTRUCTOR", 2, "INTEGER"),
+            new ColumnConfig("DUAL RECEIVED", 2, "INTEGER"),
+            new ColumnConfig("PILOT IN COMMAND (INCL. SOLO)", 2, "INTEGER"),
+            new ColumnConfig("TOTAL DURATION OF FLIGHT", 2, "INTEGER")
+    );
+
+    private static final Map<Integer, String> COLUMN_TYPES = new HashMap<>();
+
+    // Initialize column types based on configuration
+    static {
+        // Map for tracking current column index for each field
+        Map<String, Integer> startingColumns = new HashMap<>();
+        int currentColumn = 0;
+
+        for (ColumnConfig config : COLUMN_CONFIGS) {
+            startingColumns.put(config.getFieldName(), currentColumn);
+            for (int i = 0; i < config.getColumnCount(); i++) {
+                COLUMN_TYPES.put(currentColumn + i, config.getType());
+            }
+            currentColumn += config.getColumnCount();
+        }
+
+        log.info("Initialized column types mapping: {}", COLUMN_TYPES);
+    }
+
     public TableResponseDTO analyzeDocument(AnalyzeResult analyzeResult, LogbookType logbookType) {
         log.info("Starting document analysis for logbook type: {}", logbookType);
         List<TableRow> tableRows = convertToTableRows(analyzeResult);
+        return processTableRows(tableRows, logbookType);
+    }
+
+    public TableResponseDTO analyzeDummyDocument(DummyAnalyzeResult dummyResult, LogbookType logbookType) {
+        log.info("Starting dummy document analysis for logbook type: {}", logbookType);
+        List<TableRow> tableRows = convertToTableRows(dummyResult);
         return processTableRows(tableRows, logbookType);
     }
 
@@ -61,47 +124,178 @@ public class DocumentAnalysisService {
         return mapToResponse(validatedRows);
     }
 
-    private List<TableRow> convertToTableRows(AnalyzeResult analyzeResult) {
-        final List<TableRow> allTableRows = new ArrayList<>();
+    // Interface to abstract table cell properties
+    private interface TableCell {
+        int getRowIndex();
+        int getColumnIndex();
+        String getContent();
+        boolean isHeader();
+    }
 
-        if (analyzeResult.getTables() == null) {
-            log.warn("No tables found in analyze result");
-            return allTableRows;
+    // Adapter for DocumentTableCell
+    private static class DocumentTableCellAdapter implements TableCell {
+        private final DocumentTableCell cell;
+
+        public DocumentTableCellAdapter(DocumentTableCell cell) {
+            this.cell = cell;
         }
 
-        log.info("Found {} tables in analyze result", analyzeResult.getTables().size());
+        @Override
+        public int getRowIndex() {
+            return cell.getRowIndex();
+        }
+
+        @Override
+        public int getColumnIndex() {
+            return cell.getColumnIndex();
+        }
+
+        @Override
+        public String getContent() {
+            return cell.getContent();
+        }
+
+        @Override
+        public boolean isHeader() {
+            return DocumentTableCellKind.COLUMN_HEADER.equals(cell.getKind());
+        }
+    }
+
+    // Adapter for DummyCell
+    private static class DummyCellAdapter implements TableCell {
+        private final DummyCell cell;
+
+        public DummyCellAdapter(DummyCell cell) {
+            this.cell = cell;
+        }
+
+        @Override
+        public int getRowIndex() {
+            return cell.getRowIndex();
+        }
+
+        @Override
+        public int getColumnIndex() {
+            return cell.getColumnIndex();
+        }
+
+        @Override
+        public String getContent() {
+            return cell.getContent();
+        }
+
+        @Override
+        public boolean isHeader() {
+            return "columnHeader".equals(cell.getKind());
+        }
+    }
+
+    private List<TableRow> convertToTableRows(AnalyzeResult analyzeResult) {
+        if (analyzeResult.getTables() == null) {
+            log.warn("No tables found in analyze result");
+            return new ArrayList<>();
+        }
+
+        List<TableStructure> tableStructures = analyzeResult.getTables().stream()
+                .map(table -> new TableStructure(
+                        table.getRowCount(),
+                        table.getColumnCount(),
+                        table.getCells().stream()
+                                .map(DocumentTableCellAdapter::new)
+                                .collect(Collectors.toList())
+                ))
+                .collect(Collectors.toList());
+
+        return processTableStructures(tableStructures);
+    }
+
+    private List<TableRow> convertToTableRows(DummyAnalyzeResult dummyResult) {
+        if (dummyResult.getTables() == null) {
+            log.warn("No tables found in dummy analyze result");
+            return new ArrayList<>();
+        }
+
+        List<TableStructure> tableStructures = dummyResult.getTables().stream()
+                .map(table -> new TableStructure(
+                        table.getRowCount(),
+                        table.getColumnCount(),
+                        table.getCells().stream()
+                                .map(DummyCellAdapter::new)
+                                .collect(Collectors.toList())
+                ))
+                .collect(Collectors.toList());
+
+        return processTableStructures(tableStructures);
+    }
+
+    private static class TableStructure {
+        private final int rowCount;
+        private final int columnCount;
+        private final List<TableCell> cells;
+
+        public TableStructure(int rowCount, int columnCount, List<TableCell> cells) {
+            this.rowCount = rowCount;
+            this.columnCount = columnCount;
+            this.cells = cells;
+        }
+    }
+
+    private boolean shouldSkipTable(TableStructure table) {
+        // Check if any cell in the table contains unwanted strings
+        return table.cells.stream()
+                .map(TableCell::getContent)
+                .anyMatch(content ->
+                        content != null && UNWANTED_STRINGS.stream()
+                                .anyMatch(unwanted ->
+                                        content.toLowerCase().contains(unwanted.toLowerCase())));
+    }
+
+    private List<TableRow> processTableStructures(List<TableStructure> tableStructures) {
+        final List<TableRow> allTableRows = new ArrayList<>();
+        final Map<Integer, Map<Integer, String>> consolidatedHeaders = new HashMap<>();
+
+        log.info("Found {} tables to process", tableStructures.size());
 
         int columnOffset = 0;
         int tableIndex = 0;
-        for (DocumentTable documentTable : analyzeResult.getTables()) {
+
+        for (TableStructure table : tableStructures) {
+            if (shouldSkipTable(table)) {
+                log.info("Skipping table {} as it contains unwanted strings", tableIndex);
+                tableIndex++;
+                continue;
+            }
+
             log.info("====== Starting Table Processing ======");
-            log.info("Raw table data: {}", documentTable);
             log.info("Processing table {} - Rows: {}, Columns: {}",
-                    tableIndex++, documentTable.getRowCount(), documentTable.getColumnCount());
+                    tableIndex++, table.rowCount, table.columnCount);
 
             // Create a single map for all rows in this table
             Map<Integer, Map<Integer, String>> consolidatedRows = new HashMap<>();
             Map<Integer, Boolean> headerRows = new HashMap<>();
 
             // First pass: collect all cells for each row
-            for (DocumentTableCell cell : documentTable.getCells()) {
+            for (TableCell cell : table.cells) {
                 int rowIndex = cell.getRowIndex();
                 int columnIndex = columnOffset + cell.getColumnIndex();
                 String content = cell.getContent();
-                boolean isHeader = DocumentTableCellKind.COLUMN_HEADER.equals(cell.getKind());
+                boolean isHeader = cell.isHeader();
 
                 log.info("Processing cell - Row: {}, Col: {}, Content: {}, IsHeader: {}",
                         rowIndex, columnIndex, content, isHeader);
 
-                // Don't skip header rows anymore
+                // Special handling for headers - consolidate them into row 0
                 if (isHeader) {
-                    headerRows.put(rowIndex, true);
+                    Map<Integer, String> headerContent = consolidatedHeaders.computeIfAbsent(0, k -> new HashMap<>());
+                    if (content != null && !content.trim().isEmpty()) {
+                        headerContent.put(columnIndex, content.trim());
+                        log.info("Added header content at column {}: {}", columnIndex, content.trim());
+                    }
+                    continue; // Skip adding headers to regular rows
                 }
 
-                // Get or create the row's data map
                 Map<Integer, String> rowContent = consolidatedRows.computeIfAbsent(rowIndex, k -> new HashMap<>());
 
-                // Always add content, even if empty
                 if (content != null && !content.trim().isEmpty()) {
                     rowContent.put(columnIndex, content.trim());
                     log.info("Added content at row {} column {}: {}",
@@ -113,13 +307,12 @@ public class DocumentAnalysisService {
 
             // Second pass: create TableRow objects for non-empty rows
             consolidatedRows.forEach((rowIndex, content) -> {
-                // Create row for all non-empty content, including headers
                 if (!isRowEmpty(content) && !containsUnwantedStrings(content)) {
                     log.info("Creating TableRow for row {} with content: {}", rowIndex, content);
                     TableRow tableRow = new TableRow(
                             rowIndex,
                             new HashMap<>(content),
-                            headerRows.getOrDefault(rowIndex, false)
+                            false // All non-header content goes here
                     );
                     allTableRows.add(tableRow);
                 } else {
@@ -128,8 +321,22 @@ public class DocumentAnalysisService {
                 }
             });
 
-            columnOffset += documentTable.getColumnCount();
+            columnOffset += table.columnCount;
             log.info("Column offset after table {}: {}", tableIndex - 1, columnOffset);
+        }
+
+        // Add consolidated headers as first row if they exist
+        if (!consolidatedHeaders.isEmpty()) {
+            Map<Integer, String> headerContent = consolidatedHeaders.get(0);
+            if (!headerContent.isEmpty()) {
+                TableRow headerRow = new TableRow(
+                        0,
+                        new HashMap<>(headerContent),
+                        true
+                );
+                allTableRows.add(0, headerRow);
+                log.info("Added consolidated header row: {}", headerRow);
+            }
         }
 
         List<TableRow> sortedRows = allTableRows.stream()
@@ -148,7 +355,7 @@ public class DocumentAnalysisService {
         TableResponseDTO response = new TableResponseDTO();
         List<RowDTO> dtos = rows.stream()
                 .map(this::convertToRowDTO)
-                .filter(dto -> dto != null)  // Only filter null DTOs, keep empty ones
+                .filter(dto -> dto != null)
                 .collect(Collectors.toList());
         log.info("Converted to {} DTOs", dtos.size());
         log.info("Final DTOs: {}", dtos);
@@ -169,10 +376,10 @@ public class DocumentAnalysisService {
         Map<Integer, String> formattedContent = new HashMap<>();
         row.getColumnData().forEach((key, value) -> {
             if (value != null && !value.trim().isEmpty()) {
-                String refinedValue = row.isHeader() ? value : refineCharacters(value);
+                String refinedValue = row.isHeader() ? value : refineCharacters(value, key);
                 formattedContent.put(key, refinedValue);
-                log.info("Processed content - Column: {}, Original: '{}', Refined: '{}'",
-                        key, value, refinedValue);
+                log.info("Processed content - Column: {}, Original: '{}', Refined: '{}', Type: {}",
+                        key, value, refinedValue, COLUMN_TYPES.getOrDefault(key, "STRING"));
             }
         });
 
@@ -200,12 +407,19 @@ public class DocumentAnalysisService {
         return containsUnwanted;
     }
 
-    private String refineCharacters(String input) {
+    private String refineCharacters(String input, Integer columnIndex) {
+        String columnType = COLUMN_TYPES.getOrDefault(columnIndex, "STRING");
+
+        // Only apply character replacements for INTEGER type columns
+        if (!"INTEGER".equals(columnType)) {
+            return input;
+        }
+
         String result = input;
         for (Map.Entry<String, String> replacement : CHARACTER_REPLACEMENTS.entrySet()) {
             if (result.contains(replacement.getKey())) {
-                log.info("Replacing '{}' with '{}' in '{}'",
-                        replacement.getKey(), replacement.getValue(), result);
+                log.info("Replacing '{}' with '{}' in '{}' for INTEGER column {}",
+                        replacement.getKey(), replacement.getValue(), result, columnIndex);
                 result = result.replace(replacement.getKey(), replacement.getValue());
             }
         }
