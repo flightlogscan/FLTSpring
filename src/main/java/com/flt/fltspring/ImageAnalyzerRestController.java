@@ -2,15 +2,10 @@ package com.flt.fltspring;
 
 import com.azure.ai.documentintelligence.DocumentIntelligenceClient;
 import com.azure.ai.documentintelligence.DocumentIntelligenceClientBuilder;
-import com.azure.ai.documentintelligence.models.AnalyzeDocumentRequest;
-import com.azure.ai.documentintelligence.models.AnalyzeResult;
-import com.azure.ai.documentintelligence.models.AnalyzeResultOperation;
-import com.azure.ai.documentintelligence.models.DocumentAnalysisFeature;
-import com.azure.ai.documentintelligence.models.StringIndexType;
+import com.azure.ai.documentintelligence.models.*;
 import com.azure.core.credential.AzureKeyCredential;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.polling.SyncPoller;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.model.AnalyzeImageResponse;
 import com.flt.fltspring.model.DocumentAnalysisService;
 import com.flt.fltspring.model.LogbookType;
@@ -38,7 +33,6 @@ public class ImageAnalyzerRestController {
 
     private final String flsDocumentAiSecret;
     private final DocumentAnalysisService documentAnalysisService;
-    private final ObjectMapper objectMapper;
 
     @RequestMapping(method = RequestMethod.POST, path = "/analyze")
     public ResponseEntity<AnalyzeImageResponse> submitAnalyzeImage(
@@ -46,6 +40,8 @@ public class ImageAnalyzerRestController {
             @RequestParam(defaultValue = "JEPPESEN") LogbookType logbookType) {
 
         try {
+            log.info("Starting document analysis for logbook type: {}", logbookType);
+
             // Get binary data from request
             BinaryData documentData = readBinaryData(request);
 
@@ -53,6 +49,7 @@ public class ImageAnalyzerRestController {
             AnalyzeResult analyzeResult = getDocumentAnalysis(documentData);
 
             // Process through service layer with validation and transformation
+            // This method remains the same as it already uses the consolidated logic
             TableResponseDTO tableResponse = documentAnalysisService.analyzeDocument(
                     analyzeResult,
                     logbookType
@@ -64,6 +61,7 @@ public class ImageAnalyzerRestController {
                     .tables(tableResponse.getRows())
                     .build();
 
+            log.info("Successfully processed document");
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
@@ -71,7 +69,6 @@ public class ImageAnalyzerRestController {
             return ResponseEntity.internalServerError()
                     .body(AnalyzeImageResponse.builder()
                             .status("ERROR")
-                            .rawResults(e.getMessage())
                             .build());
         }
     }
@@ -83,6 +80,7 @@ public class ImageAnalyzerRestController {
     }
 
     private AnalyzeResult getDocumentAnalysis(BinaryData documentData) {
+        log.info("Beginning Azure document analysis");
         DocumentIntelligenceClient client = new DocumentIntelligenceClientBuilder()
                 .credential(new AzureKeyCredential(flsDocumentAiSecret))
                 .endpoint(ENDPOINT)
@@ -103,10 +101,8 @@ public class ImageAnalyzerRestController {
                 analyzeRequest
         );
 
-        return analyzePoller.getFinalResult();
-    }
-
-    private String serializeResult(AnalyzeResult result) throws IOException {
-        return objectMapper.writeValueAsString(result);
+        AnalyzeResult result = analyzePoller.getFinalResult();
+        log.info("Completed Azure document analysis");
+        return result;
     }
 }
