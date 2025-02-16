@@ -63,32 +63,32 @@ public class ImageAnalyzerDummyRestController {
             final HttpServletRequest request,
             @RequestParam(defaultValue = "JEPPESEN") LogbookType logbookType) {
 
+        log.info("Received dummy analysis request");
+
         final String firebaseEmail = (String) request.getAttribute("firebaseEmail");
         if (!AdminAuthenticator.isAdmin(firebaseEmail)) {
+            log.info("Non-admin hitting dummy endpoint, returning not found");
             return ResponseEntity.notFound().build();
         }
 
         try {
-            log.info("Received dummy analysis request");
 
-            File file = new File("dummyResponse.txt");
-            String rawData = FileUtils.readFileToString(file, "UTF-8");
+            final File file = new File("dummyResponse.txt");
+            final String rawData = FileUtils.readFileToString(file, "UTF-8");
 
             log.info("Successfully read dummy response file");
-            log.debug("Raw file content: {}", rawData);
+            log.info("Raw file content: {}", rawData);
 
-            DummyAnalyzeResult dummyResult = objectMapper.readValue(rawData, DummyAnalyzeResult.class);
+            final DummyAnalyzeResult dummyResult = objectMapper.readValue(rawData, DummyAnalyzeResult.class);
 
-            // Use the consolidated service method to process the dummy result
-            TableResponseDTO tableResponse = documentAnalysisService.analyzeDummyDocument(dummyResult, logbookType);
+            final TableResponseDTO tableResponse = documentAnalysisService.analyzeDummyDocument(dummyResult, logbookType);
 
             final AnalyzeImageResponse response = AnalyzeImageResponse.builder()
                     .status("SUCCESS")
                     .tables(tableResponse.getRows())
                     .build();
 
-            log.info("Returning response");
-            log.debug("Final response: {}", objectMapper.writeValueAsString(response));
+            log.info("Final response: {}", objectMapper.writeValueAsString(response));
 
             return ResponseEntity.ok(response);
 

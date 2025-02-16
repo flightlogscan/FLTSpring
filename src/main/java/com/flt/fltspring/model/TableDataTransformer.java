@@ -6,15 +6,24 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
 @Slf4j
 @Service
 public class TableDataTransformer {
-    // Common patterns in aircraft logbooks
-    private static final Pattern TIME_PATTERN = Pattern.compile("^\\d{1,2}[:|.]\\d{2}$");
-    private static final Pattern DATE_PATTERN = Pattern.compile("^\\d{1,2}/\\d{1,2}(?:/\\d{2,4})?$");
+    private static final Map<String, String> CHARACTER_REPLACEMENTS = new HashMap<>() {{
+        put("/", "1");
+        put("\\", "1");
+        put("o", "0");
+        put("O", "0");
+        put("l", "1");
+        put("I", "1");
+        put("S", "5");
+        put("s", "5");
+        put("Z", "2");
+        put("z", "2");
+        put("b", "6");
+        put("B", "8");
+    }};
 
     public List<TableRow> transformData(List<TableRow> rows) {
         log.info("Starting transformation of {} rows", rows.size());
@@ -30,8 +39,7 @@ public class TableDataTransformer {
         Map<Integer, String> cleanedData = new HashMap<>();
 
         row.getColumnData().forEach((column, value) -> {
-            String cleanedValue = cleanValue(value, row.isHeader());
-            log.debug("Column {}: '{}' -> '{}'", column, value, cleanedValue);
+            String cleanedValue = row.isHeader() ? value.trim() : replaceCharacters(value);
             if (cleanedValue != null && !cleanedValue.trim().isEmpty()) {
                 cleanedData.put(column, cleanedValue);
             }
@@ -42,66 +50,17 @@ public class TableDataTransformer {
         return transformedRow;
     }
 
-    private String cleanValue(String value, boolean isHeader) {
+    private String replaceCharacters(String value) {
         if (value == null || value.trim().isEmpty()) {
             return value;
         }
 
-        // Don't transform header values
-        if (isHeader) {
-            return value.trim();
-        }
-
-        String cleaned = value.trim();
-
-        // Handle specific patterns
-        if (TIME_PATTERN.matcher(cleaned).matches()) {
-            // Standardize time format (e.g., "1:30" -> "1.5")
-            cleaned = standardizeTime(cleaned);
-        } else if (DATE_PATTERN.matcher(cleaned).matches()) {
-            // Standardize date format
-            cleaned = standardizeDate(cleaned);
-        }
-
-        // Remove multiple spaces
-        cleaned = cleaned.replaceAll("\\s+", " ");
-
-        // Remove common OCR artifacts
-        cleaned = cleaned.replaceAll("[\\p{Punct}&&[^./]]", "");
-
-        return cleaned;
-    }
-
-    private String standardizeTime(String time) {
-        try {
-            String[] parts = time.split("[:|.]");
-            int hours = Integer.parseInt(parts[0]);
-            int minutes = Integer.parseInt(parts[1]);
-            double decimal = hours + (minutes / 60.0);
-            return String.format("%.1f", decimal);
-        } catch (Exception e) {
-            log.warn("Failed to standardize time value: {}", time, e);
-            return time;
-        }
-    }
-
-    private String standardizeDate(String date) {
-        try {
-            String[] parts = date.split("/");
-            // Assuming MM/DD format if only two parts
-            if (parts.length == 2) {
-                return String.format("%02d/%02d",
-                        Integer.parseInt(parts[0]),
-                        Integer.parseInt(parts[1]));
+        String result = value.trim();
+        for (Map.Entry<String, String> replacement : CHARACTER_REPLACEMENTS.entrySet()) {
+            if (result.contains(replacement.getKey())) {
+                result = result.replace(replacement.getKey(), replacement.getValue());
             }
-            // MM/DD/YY format
-            return String.format("%02d/%02d/%s",
-                    Integer.parseInt(parts[0]),
-                    Integer.parseInt(parts[1]),
-                    parts[2]);
-        } catch (Exception e) {
-            log.warn("Failed to standardize date value: {}", date, e);
-            return date;
         }
+        return result;
     }
 }

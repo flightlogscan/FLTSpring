@@ -35,21 +35,6 @@ public class DocumentAnalysisService {
             "AMT. FORWARDED"
     );
 
-    private static final Map<String, String> CHARACTER_REPLACEMENTS = new HashMap<String, String>() {{
-        put("/", "1");
-        put("\\", "1");
-        put("o", "0");
-        put("O", "0");
-        put("l", "1");
-        put("I", "1");
-        put("S", "5");
-        put("s", "5");
-        put("Z", "2");
-        put("z", "2");
-        put("b", "6");
-        put("B", "8");
-    }};
-
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -165,7 +150,6 @@ public class DocumentAnalysisService {
         }
     }
 
-    // Adapter for DummyCell
     private static class DummyCellAdapter implements TableCell {
         private final DummyCell cell;
 
@@ -194,13 +178,13 @@ public class DocumentAnalysisService {
         }
     }
 
-    private List<TableRow> convertToTableRows(AnalyzeResult analyzeResult) {
+    private List<TableRow> convertToTableRows(final AnalyzeResult analyzeResult) {
         if (analyzeResult.getTables() == null) {
             log.warn("No tables found in analyze result");
             return new ArrayList<>();
         }
 
-        List<TableStructure> tableStructures = analyzeResult.getTables().stream()
+        final List<TableStructure> tableStructures = analyzeResult.getTables().stream()
                 .map(table -> new TableStructure(
                         table.getRowCount(),
                         table.getColumnCount(),
@@ -219,7 +203,7 @@ public class DocumentAnalysisService {
             return new ArrayList<>();
         }
 
-        List<TableStructure> tableStructures = dummyResult.getTables().stream()
+        final List<TableStructure> tableStructures = dummyResult.getTables().stream()
                 .map(table -> new TableStructure(
                         table.getRowCount(),
                         table.getColumnCount(),
@@ -275,22 +259,22 @@ public class DocumentAnalysisService {
                     tableIndex++, table.rowCount, table.columnCount);
 
             // Create a single map for all rows in this table
-            Map<Integer, Map<Integer, String>> consolidatedRows = new HashMap<>();
-            Map<Integer, Boolean> headerRows = new HashMap<>();
+            final Map<Integer, Map<Integer, String>> consolidatedRows = new HashMap<>();
+            final Map<Integer, Boolean> headerRows = new HashMap<>();
 
             // First pass: collect all cells for each row
             for (TableCell cell : table.cells) {
-                int rowIndex = cell.getRowIndex();
-                int columnIndex = columnOffset + cell.getColumnIndex();
-                String content = cell.getContent();
-                boolean isHeader = cell.isHeader();
+                final int rowIndex = cell.getRowIndex();
+                final int columnIndex = columnOffset + cell.getColumnIndex();
+                final String content = cell.getContent();
+                final boolean isHeader = cell.isHeader();
 
                 log.info("Processing cell - Row: {}, Col: {}, Content: {}, IsHeader: {}",
                         rowIndex, columnIndex, content, isHeader);
 
                 // Special handling for headers - consolidate them into row 0
                 if (isHeader) {
-                    Map<Integer, String> headerContent = consolidatedHeaders.computeIfAbsent(0, k -> new HashMap<>());
+                    final Map<Integer, String> headerContent = consolidatedHeaders.computeIfAbsent(0, k -> new HashMap<>());
                     if (content != null && !content.trim().isEmpty()) {
                         headerContent.put(columnIndex, content.trim());
                         log.info("Added header content at column {}: {}", columnIndex, content.trim());
@@ -298,7 +282,7 @@ public class DocumentAnalysisService {
                     continue; // Skip adding headers to regular rows
                 }
 
-                Map<Integer, String> rowContent = consolidatedRows.computeIfAbsent(rowIndex, k -> new HashMap<>());
+                final Map<Integer, String> rowContent = consolidatedRows.computeIfAbsent(rowIndex, k -> new HashMap<>());
 
                 if (content != null && !content.trim().isEmpty()) {
                     rowContent.put(columnIndex, content.trim());
@@ -331,9 +315,9 @@ public class DocumentAnalysisService {
 
         // Add consolidated headers as first row if they exist
         if (!consolidatedHeaders.isEmpty()) {
-            Map<Integer, String> headerContent = consolidatedHeaders.get(0);
+            final Map<Integer, String> headerContent = consolidatedHeaders.get(0);
             if (!headerContent.isEmpty()) {
-                TableRow headerRow = new TableRow(
+                final TableRow headerRow = new TableRow(
                         0,
                         new HashMap<>(headerContent),
                         true
@@ -343,7 +327,7 @@ public class DocumentAnalysisService {
             }
         }
 
-        List<TableRow> sortedRows = allTableRows.stream()
+        final List<TableRow> sortedRows = allTableRows.stream()
                 .sorted(Comparator.comparingInt(TableRow::getRowIndex))
                 .collect(Collectors.toList());
 
@@ -356,8 +340,8 @@ public class DocumentAnalysisService {
 
     private TableResponseDTO mapToResponse(List<TableRow> rows) {
         log.info("Mapping {} rows to response", rows.size());
-        TableResponseDTO response = new TableResponseDTO();
-        List<RowDTO> dtos = rows.stream()
+        final TableResponseDTO response = new TableResponseDTO();
+        final List<RowDTO> dtos = rows.stream()
                 .map(this::convertToRowDTO)
                 .filter(dto -> dto != null)
                 .collect(Collectors.toList());
@@ -374,23 +358,23 @@ public class DocumentAnalysisService {
         }
 
         log.info("Converting row to DTO: {}", row);
-        RowDTO dto = new RowDTO();
+        final RowDTO dto = new RowDTO();
         dto.setRowIndex(row.getRowIndex());
 
-        Map<Integer, String> formattedContent = new HashMap<>();
+        final Map<Integer, String> formattedContent = new HashMap<>();
 
         if (row.isHeader()) {
             // For header rows, duplicate headers for related columns
-            Map<Integer, String> headerContent = row.getColumnData();
+            final Map<Integer, String> headerContent = row.getColumnData();
 
             // Get all data columns from non-header rows to ensure headers cover all data columns
-            Set<Integer> dataColumns = rows.stream()
+            final Set<Integer> dataColumns = rows.stream()
                     .filter(r -> !r.isHeader())
                     .flatMap(r -> r.getColumnData().keySet().stream())
                     .collect(Collectors.toSet());
 
             // Sort header keys to process them in order
-            List<Integer> sortedHeaderKeys = new ArrayList<>(headerContent.keySet());
+            final List<Integer> sortedHeaderKeys = new ArrayList<>(headerContent.keySet());
             Collections.sort(sortedHeaderKeys);
 
             for (int i = 0; i < sortedHeaderKeys.size(); i++) {
@@ -415,10 +399,9 @@ public class DocumentAnalysisService {
                 }
             }
         } else {
-            // For data rows, just add refined values
             row.getColumnData().forEach((key, value) -> {
                 if (value != null && !value.trim().isEmpty()) {
-                    formattedContent.put(key, refineCharacters(value, key));
+                    formattedContent.put(key, value);
                 }
             });
         }
@@ -427,19 +410,6 @@ public class DocumentAnalysisService {
         dto.setHeader(row.isHeader());
         log.info("Created DTO: {}", dto);
         return dto;
-    }
-
-    private String findHeaderKey(Integer columnIndex) {
-        // Find the last header key that's less than or equal to this column index
-        return COLUMN_CONFIGS.stream()
-                .map(config -> config.getFieldName())
-                .map(String::valueOf)
-                .filter(key -> {
-                    int headerIndex = Integer.parseInt(key);
-                    return headerIndex <= columnIndex;
-                })
-                .max(Comparator.comparingInt(Integer::parseInt))
-                .orElse(String.valueOf(columnIndex));
     }
 
     private boolean isRowEmpty(Map<Integer, String> rowData) {
@@ -458,24 +428,5 @@ public class DocumentAnalysisService {
             log.info("Found unwanted strings in row: {}", rowData);
         }
         return containsUnwanted;
-    }
-
-    private String refineCharacters(String input, Integer columnIndex) {
-        String columnType = COLUMN_TYPES.getOrDefault(columnIndex, "STRING");
-
-        // Only apply character replacements for INTEGER type columns
-        if (!"INTEGER".equals(columnType)) {
-            return input;
-        }
-
-        String result = input;
-        for (Map.Entry<String, String> replacement : CHARACTER_REPLACEMENTS.entrySet()) {
-            if (result.contains(replacement.getKey())) {
-                log.info("Replacing '{}' with '{}' in '{}' for INTEGER column {}",
-                        replacement.getKey(), replacement.getValue(), result, columnIndex);
-                result = result.replace(replacement.getKey(), replacement.getValue());
-            }
-        }
-        return result;
     }
 }
