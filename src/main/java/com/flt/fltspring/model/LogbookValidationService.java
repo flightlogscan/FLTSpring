@@ -5,9 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -58,10 +60,37 @@ public class LogbookValidationService {
             }
         });
 
-        // Create new header row
+        // Find all columns that contain data in non-header rows
+        Set<Integer> dataColumns = scannedRows.stream()
+                .filter(row -> !row.isHeader())
+                .flatMap(row -> row.getColumnData().keySet().stream())
+                .collect(Collectors.toSet());
+
+        // Duplicate headers for columns that should share the same header
+        Map<Integer, String> expandedHeaders = new HashMap<>(correctedHeaders);
+        List<Integer> headerKeys = new ArrayList<>(correctedHeaders.keySet());
+        Collections.sort(headerKeys);
+
+        for (int i = 0; i < headerKeys.size(); i++) {
+            int currentKey = headerKeys.get(i);
+            String currentValue = correctedHeaders.get(currentKey);
+
+            // Find the next header key
+            int nextKey = (i + 1 < headerKeys.size()) ? headerKeys.get(i + 1) : Integer.MAX_VALUE;
+
+            // Add the same header value to all columns between current and next header
+            for (int col = currentKey + 1; col < nextKey; col++) {
+                if (!correctedHeaders.containsKey(col) && dataColumns.contains(col)) {
+                    expandedHeaders.put(col, currentValue);
+                    log.debug("Duplicated header '{}' to column {}", currentValue, col);
+                }
+            }
+        }
+
+        // Create new header row with expanded headers
         TableRow correctedHeaderRow = new TableRow(
                 headerRow.getRowIndex(),
-                correctedHeaders,
+                expandedHeaders,
                 true
         );
 
