@@ -13,10 +13,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
 public class DocumentAnalysisService {
     private final LogbookValidationService validationService;
     private final TableDataTransformer transformer;
+    private List<TableRow> rows;
 
     private static final List<String> UNWANTED_STRINGS = List.of(
             "I certify that",
@@ -115,6 +118,7 @@ public class DocumentAnalysisService {
     public TableResponseDTO processTableRows(List<TableRow> tableRows, LogbookType logbookType) {
         log.info("Processing {} table rows", tableRows.size());
         log.info("Input rows: {}", tableRows);
+        this.rows = tableRows;
         List<TableRow> transformedRows = transformer.transformData(tableRows);
         log.info("After transformation: {} rows", transformedRows.size());
         log.info("Transformed rows: {}", transformedRows);
@@ -374,19 +378,68 @@ public class DocumentAnalysisService {
         dto.setRowIndex(row.getRowIndex());
 
         Map<Integer, String> formattedContent = new HashMap<>();
-        row.getColumnData().forEach((key, value) -> {
-            if (value != null && !value.trim().isEmpty()) {
-                String refinedValue = row.isHeader() ? value : refineCharacters(value, key);
-                formattedContent.put(key, refinedValue);
-                log.info("Processed content - Column: {}, Original: '{}', Refined: '{}', Type: {}",
-                        key, value, refinedValue, COLUMN_TYPES.getOrDefault(key, "STRING"));
+
+        if (row.isHeader()) {
+            // For header rows, duplicate headers for related columns
+            Map<Integer, String> headerContent = row.getColumnData();
+
+            // Get all data columns from non-header rows to ensure headers cover all data columns
+            Set<Integer> dataColumns = rows.stream()
+                    .filter(r -> !r.isHeader())
+                    .flatMap(r -> r.getColumnData().keySet().stream())
+                    .collect(Collectors.toSet());
+
+            // Sort header keys to process them in order
+            List<Integer> sortedHeaderKeys = new ArrayList<>(headerContent.keySet());
+            Collections.sort(sortedHeaderKeys);
+
+            for (int i = 0; i < sortedHeaderKeys.size(); i++) {
+                int currentKey = sortedHeaderKeys.get(i);
+                String currentValue = headerContent.get(currentKey);
+
+                if (currentValue != null && !currentValue.trim().isEmpty()) {
+                    formattedContent.put(currentKey, currentValue);
+
+                    // Find next header column
+                    int nextHeaderKey = (i + 1 < sortedHeaderKeys.size())
+                            ? sortedHeaderKeys.get(i + 1)
+                            : Integer.MAX_VALUE;
+
+                    // Add same header for all columns with data until next header
+                    for (int col = currentKey + 1; col < nextHeaderKey; col++) {
+                        if (dataColumns.contains(col)) {
+                            formattedContent.put(col, currentValue);
+                            log.debug("Duplicated header '{}' to column {}", currentValue, col);
+                        }
+                    }
+                }
             }
-        });
+        } else {
+            // For data rows, just add refined values
+            row.getColumnData().forEach((key, value) -> {
+                if (value != null && !value.trim().isEmpty()) {
+                    formattedContent.put(key, refineCharacters(value, key));
+                }
+            });
+        }
 
         dto.setContent(formattedContent);
         dto.setHeader(row.isHeader());
         log.info("Created DTO: {}", dto);
         return dto;
+    }
+
+    private String findHeaderKey(Integer columnIndex) {
+        // Find the last header key that's less than or equal to this column index
+        return COLUMN_CONFIGS.stream()
+                .map(config -> config.getFieldName())
+                .map(String::valueOf)
+                .filter(key -> {
+                    int headerIndex = Integer.parseInt(key);
+                    return headerIndex <= columnIndex;
+                })
+                .max(Comparator.comparingInt(Integer::parseInt))
+                .orElse(String.valueOf(columnIndex));
     }
 
     private boolean isRowEmpty(Map<Integer, String> rowData) {
