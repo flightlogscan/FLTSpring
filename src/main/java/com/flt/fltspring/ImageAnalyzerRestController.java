@@ -43,19 +43,16 @@ public class ImageAnalyzerRestController {
             log.info("Starting document analysis for logbook type: {}", logbookType);
 
             // Get binary data from request
-            BinaryData documentData = readBinaryData(request);
+            final BinaryData documentData = readBinaryData(request);
 
             // Get Azure analysis result
-            AnalyzeResult analyzeResult = getDocumentAnalysis(documentData);
+            final AnalyzeResult analyzeResult = getDocumentAnalysis(documentData);
 
-            // Process through service layer with validation and transformation
-            // This method remains the same as it already uses the consolidated logic
-            TableResponseDTO tableResponse = documentAnalysisService.analyzeDocument(
+            final TableResponseDTO tableResponse = documentAnalysisService.analyzeDocument(
                     analyzeResult,
                     logbookType
             );
 
-            // Create final response
             final AnalyzeImageResponse response = AnalyzeImageResponse.builder()
                     .status("SUCCESS")
                     .tables(tableResponse.getRows())
@@ -74,22 +71,22 @@ public class ImageAnalyzerRestController {
     }
 
     private BinaryData readBinaryData(HttpServletRequest request) throws IOException {
-        BinaryData data = BinaryData.fromBytes(request.getInputStream().readAllBytes());
+        final BinaryData data = BinaryData.fromBytes(request.getInputStream().readAllBytes());
         log.info("Successfully read binary data, length: {}", data.getLength());
         return data;
     }
 
     private AnalyzeResult getDocumentAnalysis(BinaryData documentData) {
         log.info("Beginning Azure document analysis");
-        DocumentIntelligenceClient client = new DocumentIntelligenceClientBuilder()
+        final DocumentIntelligenceClient client = new DocumentIntelligenceClientBuilder()
                 .credential(new AzureKeyCredential(flsDocumentAiSecret))
                 .endpoint(ENDPOINT)
                 .buildClient();
 
-        AnalyzeDocumentRequest analyzeRequest = new AnalyzeDocumentRequest()
+        final AnalyzeDocumentRequest analyzeRequest = new AnalyzeDocumentRequest()
                 .setBase64Source(documentData.toBytes());
 
-        SyncPoller<AnalyzeResultOperation, AnalyzeResult> analyzePoller = client.beginAnalyzeDocument(
+        final SyncPoller<AnalyzeResultOperation, AnalyzeResult> analyzePoller = client.beginAnalyzeDocument(
                 "prebuilt-layout",
                 "1",
                 "en-US",
@@ -101,7 +98,7 @@ public class ImageAnalyzerRestController {
                 analyzeRequest
         );
 
-        AnalyzeResult result = analyzePoller.getFinalResult();
+        final AnalyzeResult result = analyzePoller.getFinalResult();
         log.info("Completed Azure document analysis");
         return result;
     }

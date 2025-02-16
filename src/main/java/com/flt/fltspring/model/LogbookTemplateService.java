@@ -4,8 +4,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
-
-// Service to manage templates
 @Service
 public class LogbookTemplateService {
     private final Map<LogbookType, LogbookTemplate> templates;

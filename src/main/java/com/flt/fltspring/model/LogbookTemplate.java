@@ -20,6 +20,6 @@ public class LogbookTemplate {
     }
 
     public enum DataType {
-        DATE, NUMBER, TEXT, TIME
+        DATE, TEXT
     }
 }
