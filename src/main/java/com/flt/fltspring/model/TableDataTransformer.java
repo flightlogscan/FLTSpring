@@ -1,12 +1,14 @@
 package com.flt.fltspring.model;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 public class TableDataTransformer {
@@ -25,6 +27,19 @@ public class TableDataTransformer {
         put("B", "8");
     }};
 
+    @Autowired
+    private DocumentAnalysisService.ColumnConfig[] columnConfigs;
+
+    private Map<String, String> columnTypeMap;
+
+    @Autowired
+    public void init() {
+        columnTypeMap = new HashMap<>();
+        for (DocumentAnalysisService.ColumnConfig config : columnConfigs) {
+            columnTypeMap.put(config.getFieldName(), config.getType());
+        }
+    }
+
     public List<TableRow> transformData(List<TableRow> rows) {
         log.info("Starting transformation of {} rows", rows.size());
         List<TableRow> transformed = rows.stream()
@@ -39,15 +54,31 @@ public class TableDataTransformer {
         Map<Integer, String> cleanedData = new HashMap<>();
 
         row.getColumnData().forEach((column, value) -> {
-            String cleanedValue = row.isHeader() ? value.trim() : replaceCharacters(value);
+            String cleanedValue;
+            if (row.isHeader()) {
+                cleanedValue = value.trim();
+            } else {
+                String columnType = getColumnType(value, row.getColumnData());
+                cleanedValue = shouldTransform(columnType) ? replaceCharacters(value) : value.trim();
+            }
             if (cleanedValue != null && !cleanedValue.trim().isEmpty()) {
                 cleanedData.put(column, cleanedValue);
             }
         });
 
-        TableRow transformedRow = new TableRow(row.getRowIndex(), cleanedData, row.isHeader());
-        log.debug("Transformed row result: {}", transformedRow);
-        return transformedRow;
+        return new TableRow(row.getRowIndex(), cleanedData, row.isHeader());
+    }
+
+    private String getColumnType(String value, Map<Integer, String> columnData) {
+        return columnData.entrySet().stream()
+                .filter(e -> e.getValue().equals(value))
+                .findFirst()
+                .map(e -> columnTypeMap.getOrDefault(value, "STRING"))
+                .orElse("STRING");
+    }
+
+    private boolean shouldTransform(String columnType) {
+        return "INTEGER".equals(columnType);
     }
 
     private String replaceCharacters(String value) {

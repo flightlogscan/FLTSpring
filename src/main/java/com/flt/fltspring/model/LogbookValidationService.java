@@ -1,10 +1,11 @@
 package com.flt.fltspring.model;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -14,85 +15,108 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class LogbookValidationService {
-    private final LogbookTemplateService templateService;
+
+    @Autowired
+    private LogbookTemplateService templateService;
+
+    @Autowired
+    private DocumentAnalysisService.ColumnConfig[] columnConfigs;
+
+    private Map<String, DocumentAnalysisService.ColumnConfig> configMap;
+    private Map<String, String> headerMap;
+    private Set<String> parentHeaders;
+
+    @Autowired
+    public void init() {
+        this.configMap = Arrays.stream(columnConfigs)
+                .collect(Collectors.toMap(
+                        config -> config.getFieldName().toLowerCase(),
+                        config -> config
+                ));
+
+        this.headerMap = new HashMap<>();
+        headerMap.put("engine land", "SINGLE-ENGINE LAND");
+        headerMap.put("multi- engine land", "MULTI-ENGINE LAND");
+        headerMap.put("date", "DATE");
+        headerMap.put("aircraft type", "AIRCRAFT TYPE");
+        headerMap.put("aircraft ident", "AIRCRAFT IDENT");
+        headerMap.put("from", "FROM");
+        headerMap.put("to", "TO");
+        headerMap.put("nr inst. app.", "NR INST. APP.");
+        headerMap.put("remarks and endorsements", "REMARKS AND ENDORSEMENTS");
+        headerMap.put("nr t/o", "NR T/O");
+        headerMap.put("nr ldg", "NR LDG");
+
+        this.parentHeaders = Arrays.stream(columnConfigs)
+                .filter(config -> config.getColumnCount() > 1)
+                .map(DocumentAnalysisService.ColumnConfig::getFieldName)
+                .collect(Collectors.toSet());
+    }
 
     public List<TableRow> validateAndCorrect(List<TableRow> scannedRows, LogbookType type) {
         log.info("Starting validation for {} rows with type {}", scannedRows.size(), type);
 
-        final LogbookTemplate template = templateService.getTemplate(type);
-        if (template == null) {
-            log.warn("No template found for type {}. Returning original rows.", type);
-            return scannedRows;
-        }
-
-        // Find header row
-        final TableRow headerRow = scannedRows.stream()
+        TableRow headerRow = scannedRows.stream()
                 .filter(TableRow::isHeader)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No header row found"));
+                .orElse(null);
 
-        log.info("Found header row: {}", headerRow);
+        TableRow finalHeaderRow = headerRow;
+        List<TableRow> dataRows = scannedRows.stream()
+                .filter(row -> !row.equals(finalHeaderRow))
+                .map(row -> new TableRow(row.getRowIndex(), row.getColumnData(), false))
+                .collect(Collectors.toList());
 
-        // Create corrected header row while preserving non-template columns
-        final Map<Integer, String> correctedHeaders = new HashMap<>(headerRow.getColumnData());
-        template.getExpectedHeaders().forEach((index, def) -> {
-            if (def.isRequired() || headerRow.getColumnData().containsKey(index)) {
-                correctedHeaders.put(index, def.getExpectedName());
-                log.debug("Corrected header column {}: {}", index, def.getExpectedName());
+        if (headerRow != null) {
+            Map<Integer, String> consolidatedHeaders = new HashMap<>();
+            headerRow.getColumnData().forEach((column, value) -> {
+                String normalized = value.toLowerCase().trim();
+                String canonicalHeader = headerMap.getOrDefault(normalized, value);
+                consolidatedHeaders.put(column, canonicalHeader);
+            });
+
+            headerRow = new TableRow(0, consolidatedHeaders, true);
+        }
+
+        List<TableRow> result = new ArrayList<>();
+        if (headerRow != null) {
+            result.add(headerRow);
+        }
+        result.addAll(dataRows);
+
+        return result;
+    }
+
+    private Map<Integer, String> expandHeaders(Map<Integer, String> headers, Set<Integer> dataColumns) {
+        Map<Integer, String> expanded = new HashMap<>(headers);
+        List<Integer> sortedKeys = new ArrayList<>(headers.keySet());
+        Collections.sort(sortedKeys);
+
+        String currentParentHeader = null;
+        for (int i = 0; i < sortedKeys.size(); i++) {
+            int currentKey = sortedKeys.get(i);
+            String currentValue = headers.get(currentKey);
+
+            if (isParentHeader(currentValue)) {
+                currentParentHeader = currentValue;
+                continue;
             }
-        });
 
-        // Find all columns that contain data in non-header rows
-        final Set<Integer> dataColumns = scannedRows.stream()
-                .filter(row -> !row.isHeader())
-                .flatMap(row -> row.getColumnData().keySet().stream())
-                .collect(Collectors.toSet());
+            int nextKey = (i + 1 < sortedKeys.size()) ? sortedKeys.get(i + 1) : Integer.MAX_VALUE;
+            String headerToUse = currentParentHeader != null ? currentParentHeader : currentValue;
 
-        // Duplicate headers for columns that should share the same header
-        final Map<Integer, String> expandedHeaders = new HashMap<>(correctedHeaders);
-        final List<Integer> headerKeys = new ArrayList<>(correctedHeaders.keySet());
-        Collections.sort(headerKeys);
-
-        for (int i = 0; i < headerKeys.size(); i++) {
-            int currentKey = headerKeys.get(i);
-            final String currentValue = correctedHeaders.get(currentKey);
-
-            // Find the next header key
-            final int nextKey = (i + 1 < headerKeys.size()) ? headerKeys.get(i + 1) : Integer.MAX_VALUE;
-
-            // Add the same header value to all columns between current and next header
             for (int col = currentKey + 1; col < nextKey; col++) {
-                if (!correctedHeaders.containsKey(col) && dataColumns.contains(col)) {
-                    expandedHeaders.put(col, currentValue);
-                    log.debug("Duplicated header '{}' to column {}", currentValue, col);
+                if (!headers.containsKey(col) && dataColumns.contains(col)) {
+                    expanded.put(col, headerToUse);
                 }
             }
         }
 
-        // Create new header row with expanded headers
-        final TableRow correctedHeaderRow = new TableRow(
-                headerRow.getRowIndex(),
-                expandedHeaders,
-                true
-        );
+        return expanded;
+    }
 
-        log.info("Created corrected header row: {}", correctedHeaderRow);
-
-        // Return corrected data rows with original data since transformations are handled elsewhere
-        final List<TableRow> correctedDataRows = scannedRows.stream()
-                .filter(row -> !row.isHeader())
-                .toList();
-
-        log.info("Processed {} data rows", correctedDataRows.size());
-
-        // Combine corrected header and data rows
-        final List<TableRow> result = new ArrayList<>();
-        result.add(correctedHeaderRow);
-        result.addAll(correctedDataRows);
-
-        log.info("Validation complete. Final row count: {}", result.size());
-        return result;
+    private boolean isParentHeader(String header) {
+        return header != null && parentHeaders.contains(header);
     }
 }
