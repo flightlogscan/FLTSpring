@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -208,8 +209,6 @@ public class DocumentAnalysisService {
 
     private List<TableRow> processTableStructures(List<TableStructure> tableStructures) {
         final List<TableRow> allTableRows = new ArrayList<>();
-        log.info("Found {} tables to process", tableStructures.size());
-
         Map<Integer, String> consolidatedHeaders = new HashMap<>();
         Map<Integer, String> consolidatedData = new HashMap<>();
 
@@ -218,75 +217,83 @@ public class DocumentAnalysisService {
 
         for (TableStructure table : tableStructures) {
             if (shouldSkipTable(table)) {
-                log.info("Skipping table {} as it contains unwanted strings", tableIndex);
                 tableIndex++;
                 continue;
             }
 
-            log.info("====== Starting Table Processing ======");
-            log.info("Processing table {} - Rows: {}, Columns: {}", tableIndex++, table.rowCount, table.columnCount);
-
-            // Group cells by row
             Map<Integer, List<TableCell>> rowGroups = table.cells.stream()
                     .collect(Collectors.groupingBy(TableCell::getRowIndex));
 
-            // Find the header row index
-            int headerRowIndex = rowGroups.entrySet().stream()
-                    .filter(entry -> entry.getValue().stream()
-                            .anyMatch(cell -> cell.isHeader() ||
-                                    (cell.getContent() != null && isKnownHeader(cell.getContent().trim()))))
-                    .map(Map.Entry::getKey)
-                    .findFirst()
-                    .orElse(-1);
+            List<Integer> rowIndices = new ArrayList<>(rowGroups.keySet());
+            Collections.sort(rowIndices);
 
-            rowGroups.entrySet().forEach(entry -> {
-                    log.info("Key for entry: {}", entry.getKey());
-            entry.getValue().stream().forEach(inside -> {
-                log.info(inside.getContent());
-                log.info("Is header: {}", inside.isHeader());
-            });
-            });
+            if (rowIndices.size() >= 2) {
+                // Process headers (rows 0 and 1)
+                Map<Integer, String> row0Headers = new HashMap<>();
+                Map<Integer, String> row1Headers = new HashMap<>();
 
-            // Process header row first
-            if (headerRowIndex >= 0) {
-                List<TableCell> headerCells = rowGroups.get(headerRowIndex);
-                for (TableCell cell : headerCells) {
-                    String content = cell.getContent();
-                    if (content != null && !content.trim().isEmpty()) {
-                        String normalizedContent = normalizeHeaderContent(content.trim());
-                        log.info("Normalized content: {}", normalizedContent);
-                        if (configMap.containsKey(normalizedContent)) {
-                            log.info("Contained key: {}", normalizedContent);
-                            ColumnConfig config = configMap.get(normalizedContent);
-                            consolidatedHeaders.put(cell.getColumnIndex() + columnOffset, config.getFieldName());
+                for (TableCell cell : rowGroups.get(rowIndices.get(0))) {
+                    if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+                        int colIndex = cell.getColumnIndex() + columnOffset;
+                        row0Headers.put(colIndex, cell.getContent().trim());
+                    }
+                }
 
-                            if (config.getColumnCount() > 1) {
-                                for (int i = 1; i < config.getColumnCount(); i++) {
-                                    consolidatedHeaders.put(cell.getColumnIndex() + columnOffset + i, config.getFieldName());
-                                }
-                            }
+                for (TableCell cell : rowGroups.get(rowIndices.get(1))) {
+                    if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+                        int colIndex = cell.getColumnIndex() + columnOffset;
+                        String content = cell.getContent().trim();
+                        if (content.matches(".*[A-Z]{2,}.*") && !content.matches(".*\\d+.*")) {
+                            row1Headers.put(colIndex, content);
+                        }
+                    }
+                }
+
+                // Set headers, preferring row 1
+                consolidatedHeaders.putAll(row0Headers);
+                consolidatedHeaders.putAll(row1Headers);
+
+                // Process all data rows (after row 1)
+                log.info("Processing data rows: {}", rowIndices.subList(2, rowIndices.size()));
+                for (int i = 2; i < rowIndices.size(); i++) {
+                    List<TableCell> rowCells = rowGroups.get(rowIndices.get(i));
+                    log.info("Processing row {}: {}", i, rowCells);
+
+                    for (TableCell cell : rowCells) {
+                        if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+                            int colIndex = cell.getColumnIndex() + columnOffset;
+                            consolidatedData.put(colIndex, cell.getContent().trim());
+                        }
+                    }
+                }
+
+                // Find and process numeric pairs
+                List<Integer> processedIndices = new ArrayList<>();
+                for (Map.Entry<Integer, String> entry : consolidatedData.entrySet()) {
+                    int currentIndex = entry.getKey();
+                    if (processedIndices.contains(currentIndex)) continue;
+
+                    String currentValue = entry.getValue();
+                    String nextValue = consolidatedData.get(currentIndex + 1);
+
+                    if (currentValue.matches("\\d+") && nextValue != null && nextValue.matches("\\d+")) {
+                        String header = row1Headers.getOrDefault(currentIndex, row0Headers.get(currentIndex));
+                        if (header != null) {
+                            consolidatedHeaders.put(currentIndex, header);
+                            consolidatedHeaders.put(currentIndex + 1, header);
+                            processedIndices.add(currentIndex);
+                            processedIndices.add(currentIndex + 1);
                         }
                     }
                 }
             }
 
-            // Process data rows
-            int finalColumnOffset = columnOffset;
-            rowGroups.forEach((rowIndex, cells) -> {
-                if (rowIndex != headerRowIndex) {
-                    for (TableCell cell : cells) {
-                        String content = cell.getContent();
-                        if (content != null && !content.trim().isEmpty()) {
-                            consolidatedData.put(cell.getColumnIndex() + finalColumnOffset, content.trim());
-                        }
-                    }
-                }
-            });
-
             columnOffset += table.columnCount;
         }
 
-        // Create final TableRow objects
+        log.info("Final consolidated headers: {}", consolidatedHeaders);
+        log.info("Final consolidated data: {}", consolidatedData);
+
         if (!consolidatedHeaders.isEmpty()) {
             allTableRows.add(new TableRow(0, new HashMap<>(consolidatedHeaders), true));
         }
@@ -299,23 +306,7 @@ public class DocumentAnalysisService {
 
     private String normalizeHeaderContent(String content) {
         if (content == null) return "";
-
-        String normalized = content.toUpperCase().trim();
-
-        // Handle known header variations
-        if (normalized.equals("FROM/TO") || normalized.equals("ROUTE OF FLIGHT")) {
-            return "FROM";
-        }
-        if (normalized.equals("AIRCRAFT CATEGORY") || normalized.equals("CATEGORY AND CLASS")) {
-            return "SINGLE-ENGINE LAND";
-        }
-
-        // Remove parenthetical clauses
-        if (normalized.contains("(")) {
-            normalized = normalized.substring(0, normalized.indexOf("(")).trim();
-        }
-
-        return normalized;
+        return content.replaceAll("\\s+", " ").trim().toUpperCase();
     }
 
     private boolean isKnownHeader(String content) {
