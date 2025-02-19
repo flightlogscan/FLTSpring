@@ -15,9 +15,12 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -118,6 +121,12 @@ public class DocumentAnalysisService {
         public boolean isHeader() {
             return DocumentTableCellKind.COLUMN_HEADER.equals(cell.getKind());
         }
+
+        @Override
+        public String toString() {
+            return String.format("TableCell(rowIndex=%d, columnIndex=%d, content='%s', isHeader=%b)",
+                    getRowIndex(), getColumnIndex(), getContent(), isHeader());
+        }
     }
 
     private static class DummyCellAdapter implements TableCell {
@@ -145,6 +154,12 @@ public class DocumentAnalysisService {
         @Override
         public boolean isHeader() {
             return "columnHeader".equals(cell.getKind());
+        }
+
+        @Override
+        public String toString() {
+            return String.format("TableCell(rowIndex=%d, columnIndex=%d, content='%s', isHeader=%b)",
+                    getRowIndex(), getColumnIndex(), getContent(), isHeader());
         }
     }
 
@@ -206,83 +221,123 @@ public class DocumentAnalysisService {
                                 .anyMatch(unwanted ->
                                         content.toLowerCase().contains(unwanted.toLowerCase())));
     }
-
     private List<TableRow> processTableStructures(List<TableStructure> tableStructures) {
         final List<TableRow> allTableRows = new ArrayList<>();
         Map<Integer, String> consolidatedHeaders = new HashMap<>();
         Map<Integer, String> consolidatedData = new HashMap<>();
 
-        int tableIndex = 0;
         int columnOffset = 0;
 
         for (TableStructure table : tableStructures) {
             if (shouldSkipTable(table)) {
-                tableIndex++;
                 continue;
             }
 
+            // Group cells by row
             Map<Integer, List<TableCell>> rowGroups = table.cells.stream()
                     .collect(Collectors.groupingBy(TableCell::getRowIndex));
 
             List<Integer> rowIndices = new ArrayList<>(rowGroups.keySet());
             Collections.sort(rowIndices);
 
-            if (rowIndices.size() >= 2) {
-                // Process headers (rows 0 and 1)
+            if (!rowIndices.isEmpty()) {
+                // Process row 0 and row 1 for headers
                 Map<Integer, String> row0Headers = new HashMap<>();
                 Map<Integer, String> row1Headers = new HashMap<>();
 
-                for (TableCell cell : rowGroups.get(rowIndices.get(0))) {
-                    if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
-                        int colIndex = cell.getColumnIndex() + columnOffset;
-                        row0Headers.put(colIndex, cell.getContent().trim());
-                    }
-                }
+                // Process row 0 headers
+                if (rowGroups.containsKey(0)) {
+                    List<TableCell> cells = rowGroups.get(0).stream()
+                            .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
+                            .collect(Collectors.toList());
 
-                for (TableCell cell : rowGroups.get(rowIndices.get(1))) {
-                    if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
-                        int colIndex = cell.getColumnIndex() + columnOffset;
-                        String content = cell.getContent().trim();
-                        if (content.matches(".*[A-Z]{2,}.*") && !content.matches(".*\\d+.*")) {
-                            row1Headers.put(colIndex, content);
-                        }
-                    }
-                }
-
-                // Set headers, preferring row 1
-                consolidatedHeaders.putAll(row0Headers);
-                consolidatedHeaders.putAll(row1Headers);
-
-                // Process all data rows (after row 1)
-                log.info("Processing data rows: {}", rowIndices.subList(2, rowIndices.size()));
-                for (int i = 2; i < rowIndices.size(); i++) {
-                    List<TableCell> rowCells = rowGroups.get(rowIndices.get(i));
-                    log.info("Processing row {}: {}", i, rowCells);
-
-                    for (TableCell cell : rowCells) {
+                    for (TableCell cell : cells) {
                         if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
-                            int colIndex = cell.getColumnIndex() + columnOffset;
-                            consolidatedData.put(colIndex, cell.getContent().trim());
+                            int globalIndex = cell.getColumnIndex() + columnOffset;
+                            row0Headers.put(globalIndex, cell.getContent().trim());
                         }
                     }
                 }
 
-                // Find and process numeric pairs
-                List<Integer> processedIndices = new ArrayList<>();
-                for (Map.Entry<Integer, String> entry : consolidatedData.entrySet()) {
-                    int currentIndex = entry.getKey();
-                    if (processedIndices.contains(currentIndex)) continue;
+                // Process row 1 headers
+                if (rowGroups.containsKey(1)) {
+                    List<TableCell> cells = rowGroups.get(1).stream()
+                            .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
+                            .collect(Collectors.toList());
 
-                    String currentValue = entry.getValue();
-                    String nextValue = consolidatedData.get(currentIndex + 1);
+                    for (TableCell cell : cells) {
+                        if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+                            int globalIndex = cell.getColumnIndex() + columnOffset;
+                            row1Headers.put(globalIndex, cell.getContent().trim());
+                        }
+                    }
+                }
 
-                    if (currentValue.matches("\\d+") && nextValue != null && nextValue.matches("\\d+")) {
-                        String header = row1Headers.getOrDefault(currentIndex, row0Headers.get(currentIndex));
-                        if (header != null) {
-                            consolidatedHeaders.put(currentIndex, header);
-                            consolidatedHeaders.put(currentIndex + 1, header);
-                            processedIndices.add(currentIndex);
-                            processedIndices.add(currentIndex + 1);
+                // Process data rows to identify paired values
+                Set<Integer> pairedIndices = new HashSet<>();
+                if (rowGroups.size() > 2) {
+                    List<TableCell> dataCells = rowGroups.get(2).stream()
+                            .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
+                            .collect(Collectors.toList());
+
+                    for (int i = 0; i < dataCells.size() - 1; i++) {
+                        TableCell currentCell = dataCells.get(i);
+                        TableCell nextCell = dataCells.get(i + 1);
+
+                        int currentIndex = currentCell.getColumnIndex() + columnOffset;
+                        int nextIndex = nextCell.getColumnIndex() + columnOffset;
+
+                        if (nextIndex == currentIndex + 1) {
+                            String currentValue = currentCell.getContent();
+                            String nextValue = nextCell.getContent();
+
+                            if (currentValue != null && nextValue != null &&
+                                    !currentValue.trim().isEmpty() && !nextValue.trim().isEmpty()) {
+                                pairedIndices.add(currentIndex);
+                                pairedIndices.add(nextIndex);
+                            }
+                        }
+                    }
+                }
+
+                // Merge headers with priority to row 1, and handle paired values
+                for (Map.Entry<Integer, String> entry : row0Headers.entrySet()) {
+                    int index = entry.getKey();
+                    if (!row1Headers.containsKey(index)) {
+                        String header = entry.getValue();
+                        consolidatedHeaders.put(index, header);
+
+                        // If this is the first of a pair, duplicate the header
+                        if (pairedIndices.contains(index) && pairedIndices.contains(index + 1)) {
+                            consolidatedHeaders.put(index + 1, header);
+                        }
+                    }
+                }
+
+                // Add row 1 headers with pair handling
+                for (Map.Entry<Integer, String> entry : row1Headers.entrySet()) {
+                    int index = entry.getKey();
+                    String header = entry.getValue();
+                    consolidatedHeaders.put(index, header);
+
+                    // If this is the first of a pair, duplicate the header
+                    if (pairedIndices.contains(index) && pairedIndices.contains(index + 1)) {
+                        consolidatedHeaders.put(index + 1, header);
+                    }
+                }
+
+                // Process data rows
+                for (int rowIndex : rowIndices) {
+                    if (rowIndex > 1) {
+                        List<TableCell> cells = rowGroups.get(rowIndex).stream()
+                                .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
+                                .collect(Collectors.toList());
+
+                        for (TableCell cell : cells) {
+                            if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+                                int globalIndex = cell.getColumnIndex() + columnOffset;
+                                consolidatedData.put(globalIndex, cell.getContent().trim());
+                            }
                         }
                     }
                 }
@@ -302,6 +357,34 @@ public class DocumentAnalysisService {
         }
 
         return allTableRows;
+    }
+
+    private void processHeaderGroups(Map<String, List<Integer>> headerGroups,
+                                     Map<Integer, String> headers,
+                                     Map<Integer, String> data) {
+        // Process each header group
+        for (Map.Entry<String, List<Integer>> entry : headerGroups.entrySet()) {
+            String headerName = entry.getKey();
+            List<Integer> indices = entry.getValue();
+
+            if (indices.size() > 1) {
+                // For headers that appear multiple times
+                for (int i = 0; i < indices.size(); i++) {
+                    int index = indices.get(i);
+                    String value = data.get(index);
+                    String nextValue = (i + 1 < indices.size()) ? data.get(indices.get(i + 1)) : null;
+
+                    if (value != null && nextValue != null) {
+                        // Ensure both indices have the correct header
+                        headers.put(index, headerName);
+                        headers.put(indices.get(i + 1), headerName);
+
+                        log.info("Processed header group {} at indices {} and {} with values {} and {}",
+                                headerName, index, indices.get(i + 1), value, nextValue);
+                    }
+                }
+            }
+        }
     }
 
     private String normalizeHeaderContent(String content) {
