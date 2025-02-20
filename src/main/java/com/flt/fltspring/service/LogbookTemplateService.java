@@ -1,5 +1,7 @@
-package com.flt.fltspring.model;
+package com.flt.fltspring.service;
 
+import com.flt.fltspring.model.LogbookTemplate;
+import com.flt.fltspring.model.LogbookType;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
