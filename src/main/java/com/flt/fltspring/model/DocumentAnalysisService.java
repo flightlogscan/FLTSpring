@@ -221,6 +221,13 @@ public class DocumentAnalysisService {
                                 .anyMatch(unwanted ->
                                         content.toLowerCase().contains(unwanted.toLowerCase())));
     }
+    private String cleanContent(String content) {
+        if (content == null) return null;
+        return content.replaceAll("\\r?\\n", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
     private List<TableRow> processTableStructures(List<TableStructure> tableStructures) {
         final List<TableRow> allTableRows = new ArrayList<>();
         Map<Integer, String> consolidatedHeaders = new HashMap<>();
@@ -241,7 +248,6 @@ public class DocumentAnalysisService {
             Collections.sort(rowIndices);
 
             if (!rowIndices.isEmpty()) {
-                // Process row 0 and row 1 for headers
                 Map<Integer, String> row0Headers = new HashMap<>();
                 Map<Integer, String> row1Headers = new HashMap<>();
 
@@ -254,7 +260,8 @@ public class DocumentAnalysisService {
                     for (TableCell cell : cells) {
                         if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
                             int globalIndex = cell.getColumnIndex() + columnOffset;
-                            row0Headers.put(globalIndex, cell.getContent().trim());
+                            row0Headers.put(globalIndex, cleanContent(cell.getContent()));
+                            log.info("Row 0 header at index {}: {}", globalIndex, cleanContent(cell.getContent()));
                         }
                     }
                 }
@@ -268,13 +275,14 @@ public class DocumentAnalysisService {
                     for (TableCell cell : cells) {
                         if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
                             int globalIndex = cell.getColumnIndex() + columnOffset;
-                            row1Headers.put(globalIndex, cell.getContent().trim());
+                            row1Headers.put(globalIndex, cleanContent(cell.getContent()));
+                            log.info("Row 1 header at index {}: {}", globalIndex, cleanContent(cell.getContent()));
                         }
                     }
                 }
 
-                // Process data rows to identify paired values
-                Set<Integer> pairedIndices = new HashSet<>();
+                // Find all value pairs first
+                Set<Integer> valueStartIndices = new HashSet<>();
                 if (rowGroups.size() > 2) {
                     List<TableCell> dataCells = rowGroups.get(2).stream()
                             .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
@@ -288,43 +296,53 @@ public class DocumentAnalysisService {
                         int nextIndex = nextCell.getColumnIndex() + columnOffset;
 
                         if (nextIndex == currentIndex + 1) {
-                            String currentValue = currentCell.getContent();
-                            String nextValue = nextCell.getContent();
+                            String currentValue = cleanContent(currentCell.getContent());
+                            String nextValue = cleanContent(nextCell.getContent());
 
                             if (currentValue != null && nextValue != null &&
-                                    !currentValue.trim().isEmpty() && !nextValue.trim().isEmpty()) {
-                                pairedIndices.add(currentIndex);
-                                pairedIndices.add(nextIndex);
+                                    !currentValue.isEmpty() && !nextValue.isEmpty()) {
+                                // Don't treat as paired if there are distinct row 1 headers
+                                if (!(row1Headers.containsKey(currentIndex) && row1Headers.containsKey(nextIndex) &&
+                                        !row1Headers.get(currentIndex).equals(row1Headers.get(nextIndex)))) {
+                                    valueStartIndices.add(currentIndex);
+                                    log.info("Found value pair starting at index {}: {}, {}",
+                                            currentIndex, currentValue, nextValue);
+                                }
                             }
                         }
                     }
                 }
 
-                // Merge headers with priority to row 1, and handle paired values
+                // Process headers with consistent pair handling
+                Map<Integer, String> effectiveHeaders = new HashMap<>();
+
+                // First process row 1 headers as they take precedence
+                for (Map.Entry<Integer, String> entry : row1Headers.entrySet()) {
+                    int index = entry.getKey();
+                    String header = entry.getValue();
+                    effectiveHeaders.put(index, header);
+
+                    // If this is the start of a value pair, duplicate the header
+                    if (valueStartIndices.contains(index)) {
+                        effectiveHeaders.put(index + 1, header);
+                    }
+                }
+
+                // Then process row 0 headers where row 1 headers don't exist
                 for (Map.Entry<Integer, String> entry : row0Headers.entrySet()) {
                     int index = entry.getKey();
                     if (!row1Headers.containsKey(index)) {
                         String header = entry.getValue();
-                        consolidatedHeaders.put(index, header);
+                        effectiveHeaders.put(index, header);
 
-                        // If this is the first of a pair, duplicate the header
-                        if (pairedIndices.contains(index) && pairedIndices.contains(index + 1)) {
-                            consolidatedHeaders.put(index + 1, header);
+                        // If this is the start of a value pair and no row 1 header for next index
+                        if (valueStartIndices.contains(index) && !row1Headers.containsKey(index + 1)) {
+                            effectiveHeaders.put(index + 1, header);
                         }
                     }
                 }
 
-                // Add row 1 headers with pair handling
-                for (Map.Entry<Integer, String> entry : row1Headers.entrySet()) {
-                    int index = entry.getKey();
-                    String header = entry.getValue();
-                    consolidatedHeaders.put(index, header);
-
-                    // If this is the first of a pair, duplicate the header
-                    if (pairedIndices.contains(index) && pairedIndices.contains(index + 1)) {
-                        consolidatedHeaders.put(index + 1, header);
-                    }
-                }
+                consolidatedHeaders.putAll(effectiveHeaders);
 
                 // Process data rows
                 for (int rowIndex : rowIndices) {
@@ -336,7 +354,9 @@ public class DocumentAnalysisService {
                         for (TableCell cell : cells) {
                             if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
                                 int globalIndex = cell.getColumnIndex() + columnOffset;
-                                consolidatedData.put(globalIndex, cell.getContent().trim());
+                                consolidatedData.put(globalIndex, cleanContent(cell.getContent()));
+                                log.info("Data from row {} at index {}: {}", rowIndex, globalIndex,
+                                        cleanContent(cell.getContent()));
                             }
                         }
                     }
