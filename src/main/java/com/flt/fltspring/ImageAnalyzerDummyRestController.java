@@ -3,7 +3,7 @@ package com.flt.fltspring;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.claims.AdminAuthenticator;
 import com.flt.fltspring.model.AnalyzeImageResponse;
-import com.flt.fltspring.model.DocumentAnalysisService;
+import com.flt.fltspring.service.DocumentAnalysisService;
 import com.flt.fltspring.model.LogbookType;
 import com.flt.fltspring.model.TableResponseDTO;
 import jakarta.servlet.http.HttpServletRequest;

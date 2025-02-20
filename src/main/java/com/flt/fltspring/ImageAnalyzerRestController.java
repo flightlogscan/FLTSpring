@@ -7,7 +7,7 @@ import com.azure.core.credential.AzureKeyCredential;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.polling.SyncPoller;
 import com.flt.fltspring.model.AnalyzeImageResponse;
-import com.flt.fltspring.model.DocumentAnalysisService;
+import com.flt.fltspring.service.DocumentAnalysisService;
 import com.flt.fltspring.model.LogbookType;
 import com.flt.fltspring.model.TableResponseDTO;
 import jakarta.servlet.http.HttpServletRequest;

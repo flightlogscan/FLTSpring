@@ -1,16 +1,16 @@
-package com.flt.fltspring.model;
+package com.flt.fltspring.service;
 
 import com.azure.ai.documentintelligence.models.AnalyzeResult;
 import com.azure.ai.documentintelligence.models.DocumentTableCell;
 import com.azure.ai.documentintelligence.models.DocumentTableCellKind;
 import com.flt.fltspring.ImageAnalyzerDummyRestController.DummyAnalyzeResult;
 import com.flt.fltspring.ImageAnalyzerDummyRestController.DummyCell;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.flt.fltspring.model.LogbookType;
+import com.flt.fltspring.model.RowDTO;
+import com.flt.fltspring.model.TableResponseDTO;
+import com.flt.fltspring.model.TableRow;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -28,40 +28,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DocumentAnalysisService {
     private final LogbookValidationService validationService;
-    private final TableDataTransformer transformer;
-
-    @Autowired
-    private ColumnConfig[] columnConfigs;
-
-    private List<TableRow> rows;
-    private Map<String, ColumnConfig> configMap;
+    private final TableDataTransformerService transformer;
 
     private static final List<String> UNWANTED_STRINGS = List.of(
             "I certify that",
             "TOTALS",
             "AMT. FORWARDED"
     );
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ColumnConfig {
-        private String fieldName;
-        private int columnCount;
-        private String type;
-    }
-
-    @Autowired
-    public void init() {
-        this.configMap = new HashMap<>();
-        for (ColumnConfig config : columnConfigs) {
-            configMap.put(config.getFieldName().toUpperCase(), config);
-            if (config.getFieldName().contains("(")) {
-                String simpleName = config.getFieldName().substring(0, config.getFieldName().indexOf("(")).trim();
-                configMap.put(simpleName.toUpperCase(), config);
-            }
-        }
-    }
 
     public TableResponseDTO analyzeDocument(AnalyzeResult analyzeResult, LogbookType logbookType) {
         log.info("Starting document analysis for logbook type: {}", logbookType);
@@ -78,7 +51,6 @@ public class DocumentAnalysisService {
     public TableResponseDTO processTableRows(List<TableRow> tableRows, LogbookType logbookType) {
         log.info("Processing {} table rows", tableRows.size());
         log.info("Input rows: {}", tableRows);
-        this.rows = tableRows;
         List<TableRow> transformedRows = transformer.transformData(tableRows);
         log.info("After transformation: {} rows", transformedRows.size());
         log.info("Transformed rows: {}", transformedRows);
@@ -171,7 +143,6 @@ public class DocumentAnalysisService {
 
         final List<TableStructure> tableStructures = analyzeResult.getTables().stream()
                 .map(table -> new TableStructure(
-                        table.getRowCount(),
                         table.getColumnCount(),
                         table.getCells().stream()
                                 .map(DocumentTableCellAdapter::new)
@@ -190,7 +161,6 @@ public class DocumentAnalysisService {
 
         final List<TableStructure> tableStructures = dummyResult.getTables().stream()
                 .map(table -> new TableStructure(
-                        table.getRowCount(),
                         table.getColumnCount(),
                         table.getCells().stream()
                                 .map(DummyCellAdapter::new)
@@ -202,12 +172,10 @@ public class DocumentAnalysisService {
     }
 
     private static class TableStructure {
-        private final int rowCount;
         private final int columnCount;
         private final List<TableCell> cells;
 
-        public TableStructure(int rowCount, int columnCount, List<TableCell> cells) {
-            this.rowCount = rowCount;
+        public TableStructure(int columnCount, List<TableCell> cells) {
             this.columnCount = columnCount;
             this.cells = cells;
         }
@@ -379,42 +347,9 @@ public class DocumentAnalysisService {
         return allTableRows;
     }
 
-    private void processHeaderGroups(Map<String, List<Integer>> headerGroups,
-                                     Map<Integer, String> headers,
-                                     Map<Integer, String> data) {
-        // Process each header group
-        for (Map.Entry<String, List<Integer>> entry : headerGroups.entrySet()) {
-            String headerName = entry.getKey();
-            List<Integer> indices = entry.getValue();
-
-            if (indices.size() > 1) {
-                // For headers that appear multiple times
-                for (int i = 0; i < indices.size(); i++) {
-                    int index = indices.get(i);
-                    String value = data.get(index);
-                    String nextValue = (i + 1 < indices.size()) ? data.get(indices.get(i + 1)) : null;
-
-                    if (value != null && nextValue != null) {
-                        // Ensure both indices have the correct header
-                        headers.put(index, headerName);
-                        headers.put(indices.get(i + 1), headerName);
-
-                        log.info("Processed header group {} at indices {} and {} with values {} and {}",
-                                headerName, index, indices.get(i + 1), value, nextValue);
-                    }
-                }
-            }
-        }
-    }
-
     private String normalizeHeaderContent(String content) {
         if (content == null) return "";
         return content.replaceAll("\\s+", " ").trim().toUpperCase();
-    }
-
-    private boolean isKnownHeader(String content) {
-        log.info("Checking for known header against content: {}", content);
-        return configMap.containsKey(normalizeHeaderContent(content));
     }
 
     private TableResponseDTO mapToResponse(List<TableRow> rows) {
