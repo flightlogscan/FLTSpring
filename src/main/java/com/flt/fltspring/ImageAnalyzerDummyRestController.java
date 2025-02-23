@@ -3,9 +3,9 @@ package com.flt.fltspring;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.claims.AdminAuthenticator;
 import com.flt.fltspring.model.AnalyzeImageResponse;
-import com.flt.fltspring.service.DocumentAnalysisService;
-import com.flt.fltspring.model.LogbookType;
 import com.flt.fltspring.model.TableResponseDTO;
+import com.flt.fltspring.model.dummy.DummyAnalyzeResult;
+import com.flt.fltspring.service.DocumentAnalysisService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -17,12 +17,10 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
 @RestController
 @EnableCaching
@@ -32,36 +30,9 @@ public class ImageAnalyzerDummyRestController {
     private final ObjectMapper objectMapper;
     private final DocumentAnalysisService documentAnalysisService;
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class DummyAnalyzeResult {
-        private List<DummyTable> tables;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class DummyTable {
-        private int rowCount;
-        private int columnCount;
-        private List<DummyCell> cells;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class DummyCell {
-        private String kind;
-        private int rowIndex;
-        private int columnIndex;
-        private String content;
-    }
-
     @RequestMapping(method = RequestMethod.POST, path = "/api/analyze/dummy")
     public ResponseEntity<AnalyzeImageResponse> submitAnalyzeImageDummy(
-            final HttpServletRequest request,
-            @RequestParam(defaultValue = "JEPPESEN") LogbookType logbookType) {
+            final HttpServletRequest request) {
 
         log.info("Received dummy analysis request");
 
@@ -72,7 +43,6 @@ public class ImageAnalyzerDummyRestController {
         }
 
         try {
-
             final File file = new File("dummyResponse.txt");
             final String rawData = FileUtils.readFileToString(file, "UTF-8");
 
@@ -81,14 +51,14 @@ public class ImageAnalyzerDummyRestController {
 
             final DummyAnalyzeResult dummyResult = objectMapper.readValue(rawData, DummyAnalyzeResult.class);
 
-            final TableResponseDTO tableResponse = documentAnalysisService.analyzeDummyDocument(dummyResult, logbookType);
+            final TableResponseDTO tableResponse = documentAnalysisService.analyzeDummyDocument(dummyResult);
 
             final AnalyzeImageResponse response = AnalyzeImageResponse.builder()
                     .status("SUCCESS")
                     .tables(tableResponse.getRows())
                     .build();
 
-            log.info("Final response: {}", objectMapper.writeValueAsString(response));
+            log.info("Final response: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
 
             return ResponseEntity.ok(response);
 

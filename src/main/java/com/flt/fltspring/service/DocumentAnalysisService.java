@@ -1,14 +1,12 @@
 package com.flt.fltspring.service;
 
 import com.azure.ai.documentintelligence.models.AnalyzeResult;
-import com.azure.ai.documentintelligence.models.DocumentTableCell;
-import com.azure.ai.documentintelligence.models.DocumentTableCellKind;
-import com.flt.fltspring.ImageAnalyzerDummyRestController.DummyAnalyzeResult;
-import com.flt.fltspring.ImageAnalyzerDummyRestController.DummyCell;
-import com.flt.fltspring.model.LogbookType;
+import com.flt.fltspring.model.DocumentTableCellAdapter;
 import com.flt.fltspring.model.RowDTO;
 import com.flt.fltspring.model.TableResponseDTO;
 import com.flt.fltspring.model.TableRow;
+import com.flt.fltspring.model.dummy.DummyAnalyzeResult;
+import com.flt.fltspring.model.dummy.DummyCellAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import com.flt.fltspring.model.TableCell;
 
 @Slf4j
 @Service
@@ -36,104 +35,29 @@ public class DocumentAnalysisService {
             "AMT. FORWARDED"
     );
 
-    public TableResponseDTO analyzeDocument(AnalyzeResult analyzeResult, LogbookType logbookType) {
-        log.info("Starting document analysis for logbook type: {}", logbookType);
+    public TableResponseDTO analyzeDocument(AnalyzeResult analyzeResult) {
         List<TableRow> tableRows = convertToTableRows(analyzeResult);
-        return processTableRows(tableRows, logbookType);
+        return processTableRows(tableRows);
     }
 
-    public TableResponseDTO analyzeDummyDocument(DummyAnalyzeResult dummyResult, LogbookType logbookType) {
-        log.info("Starting dummy document analysis for logbook type: {}", logbookType);
+    public TableResponseDTO analyzeDummyDocument(DummyAnalyzeResult dummyResult) {
         List<TableRow> tableRows = convertToTableRows(dummyResult);
-        return processTableRows(tableRows, logbookType);
+        return processTableRows(tableRows);
     }
 
-    public TableResponseDTO processTableRows(List<TableRow> tableRows, LogbookType logbookType) {
+    public TableResponseDTO processTableRows(List<TableRow> tableRows) {
         log.info("Processing {} table rows", tableRows.size());
         log.info("Input rows: {}", tableRows);
         List<TableRow> transformedRows = transformer.transformData(tableRows);
         log.info("After transformation: {} rows", transformedRows.size());
         log.info("Transformed rows: {}", transformedRows);
-        List<TableRow> validatedRows = validationService.validateAndCorrect(transformedRows, logbookType);
+        List<TableRow> validatedRows = validationService.validateAndCorrect(transformedRows);
         log.info("After validation: {} rows", validatedRows.size());
         log.info("Validated rows: {}", validatedRows);
         return mapToResponse(validatedRows);
     }
 
-    private interface TableCell {
-        int getRowIndex();
-        int getColumnIndex();
-        String getContent();
-        boolean isHeader();
-    }
 
-    private static class DocumentTableCellAdapter implements TableCell {
-        private final DocumentTableCell cell;
-
-        public DocumentTableCellAdapter(DocumentTableCell cell) {
-            this.cell = cell;
-        }
-
-        @Override
-        public int getRowIndex() {
-            return cell.getRowIndex();
-        }
-
-        @Override
-        public int getColumnIndex() {
-            return cell.getColumnIndex();
-        }
-
-        @Override
-        public String getContent() {
-            return cell.getContent();
-        }
-
-        @Override
-        public boolean isHeader() {
-            return DocumentTableCellKind.COLUMN_HEADER.equals(cell.getKind());
-        }
-
-        @Override
-        public String toString() {
-            return String.format("TableCell(rowIndex=%d, columnIndex=%d, content='%s', isHeader=%b)",
-                    getRowIndex(), getColumnIndex(), getContent(), isHeader());
-        }
-    }
-
-    private static class DummyCellAdapter implements TableCell {
-        private final DummyCell cell;
-
-        public DummyCellAdapter(DummyCell cell) {
-            this.cell = cell;
-        }
-
-        @Override
-        public int getRowIndex() {
-            return cell.getRowIndex();
-        }
-
-        @Override
-        public int getColumnIndex() {
-            return cell.getColumnIndex();
-        }
-
-        @Override
-        public String getContent() {
-            return cell.getContent();
-        }
-
-        @Override
-        public boolean isHeader() {
-            return "columnHeader".equals(cell.getKind());
-        }
-
-        @Override
-        public String toString() {
-            return String.format("TableCell(rowIndex=%d, columnIndex=%d, content='%s', isHeader=%b)",
-                    getRowIndex(), getColumnIndex(), getContent(), isHeader());
-        }
-    }
 
     private List<TableRow> convertToTableRows(final AnalyzeResult analyzeResult) {
         if (analyzeResult.getTables() == null) {
