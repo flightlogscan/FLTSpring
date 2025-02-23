@@ -35,8 +35,8 @@ public class LogbookValidationService {
 
     }
 
-    public List<TableRow> validateAndCorrect(List<TableRow> scannedRows, LogbookType type) {
-        log.info("Starting validation for {} rows with type {}", scannedRows.size(), type);
+    public List<TableRow> validateAndCorrect(List<TableRow> scannedRows) {
+        log.info("Starting validation for {} rows", scannedRows.size());
 
         TableRow headerRow = scannedRows.stream()
                 .filter(TableRow::isHeader)
@@ -47,7 +47,7 @@ public class LogbookValidationService {
         final List<TableRow> dataRows = scannedRows.stream()
                 .filter(row -> !row.equals(finalHeaderRow))
                 .map(row -> new TableRow(row.getRowIndex(), row.getColumnData(), false))
-                .collect(Collectors.toList());
+                .toList();
 
         if (headerRow != null) {
             Map<Integer, String> consolidatedHeaders = new HashMap<>();
