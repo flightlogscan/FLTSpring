@@ -180,8 +180,16 @@ public class DocumentAnalysisService {
             this.cells = cells;
         }
     }
-
-    private boolean shouldSkipTable(TableStructure table) {
+    private String cleanContent(String content) {
+        if (content == null) return null;
+        return content.replaceAll("\\r?\\n", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+    private boolean shouldSkipTable(TableStructure table, List<TableStructure> allTables) {
+        if (allTables.size() <= 2) {
+            return false;
+        }
         return table.cells.stream()
                 .map(TableCell::getContent)
                 .anyMatch(content ->
@@ -189,22 +197,26 @@ public class DocumentAnalysisService {
                                 .anyMatch(unwanted ->
                                         content.toLowerCase().contains(unwanted.toLowerCase())));
     }
-    private String cleanContent(String content) {
-        if (content == null) return null;
-        return content.replaceAll("\\r?\\n", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
+
+    private boolean shouldSkipRow(List<TableCell> rowCells) {
+        return rowCells.stream()
+                .map(TableCell::getContent)
+                .anyMatch(content ->
+                        content != null && UNWANTED_STRINGS.stream()
+                                .anyMatch(unwanted ->
+                                        content.toLowerCase().contains(unwanted.toLowerCase())));
     }
 
     private List<TableRow> processTableStructures(List<TableStructure> tableStructures) {
         final List<TableRow> allTableRows = new ArrayList<>();
         Map<Integer, String> consolidatedHeaders = new HashMap<>();
-        Map<Integer, String> consolidatedData = new HashMap<>();
+        Map<Integer, Map<Integer, String>> dataRowsByIndex = new HashMap<>(); // Key is row index, value is the row data
+        Set<Integer> allDataColumns = new HashSet<>();  // Track all column indices that have data
 
         int columnOffset = 0;
 
         for (TableStructure table : tableStructures) {
-            if (shouldSkipTable(table)) {
+            if (shouldSkipTable(table, tableStructures)) {
                 continue;
             }
 
@@ -249,84 +261,49 @@ public class DocumentAnalysisService {
                     }
                 }
 
-                // Find all value pairs first
-                Set<Integer> valueStartIndices = new HashSet<>();
-                if (rowGroups.size() > 2) {
-                    List<TableCell> dataCells = rowGroups.get(2).stream()
-                            .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
-                            .collect(Collectors.toList());
-
-                    for (int i = 0; i < dataCells.size() - 1; i++) {
-                        TableCell currentCell = dataCells.get(i);
-                        TableCell nextCell = dataCells.get(i + 1);
-
-                        int currentIndex = currentCell.getColumnIndex() + columnOffset;
-                        int nextIndex = nextCell.getColumnIndex() + columnOffset;
-
-                        if (nextIndex == currentIndex + 1) {
-                            String currentValue = cleanContent(currentCell.getContent());
-                            String nextValue = cleanContent(nextCell.getContent());
-
-                            if (currentValue != null && nextValue != null &&
-                                    !currentValue.isEmpty() && !nextValue.isEmpty()) {
-                                // Don't treat as paired if there are distinct row 1 headers
-                                if (!(row1Headers.containsKey(currentIndex) && row1Headers.containsKey(nextIndex) &&
-                                        !row1Headers.get(currentIndex).equals(row1Headers.get(nextIndex)))) {
-                                    valueStartIndices.add(currentIndex);
-                                    log.info("Found value pair starting at index {}: {}, {}",
-                                            currentIndex, currentValue, nextValue);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Process headers with consistent pair handling
-                Map<Integer, String> effectiveHeaders = new HashMap<>();
-
-                // First process row 1 headers as they take precedence
-                for (Map.Entry<Integer, String> entry : row1Headers.entrySet()) {
-                    int index = entry.getKey();
-                    String header = entry.getValue();
-                    effectiveHeaders.put(index, header);
-
-                    // If this is the start of a value pair, duplicate the header
-                    if (valueStartIndices.contains(index)) {
-                        effectiveHeaders.put(index + 1, header);
-                    }
-                }
-
-                // Then process row 0 headers where row 1 headers don't exist
-                for (Map.Entry<Integer, String> entry : row0Headers.entrySet()) {
-                    int index = entry.getKey();
-                    if (!row1Headers.containsKey(index)) {
-                        String header = entry.getValue();
-                        effectiveHeaders.put(index, header);
-
-                        // If this is the start of a value pair and no row 1 header for next index
-                        if (valueStartIndices.contains(index) && !row1Headers.containsKey(index + 1)) {
-                            effectiveHeaders.put(index + 1, header);
-                        }
-                    }
-                }
-
-                consolidatedHeaders.putAll(effectiveHeaders);
-
-                // Process data rows
+                // Process data rows to collect all used column indices
                 for (int rowIndex : rowIndices) {
                     if (rowIndex > 1) {
                         List<TableCell> cells = rowGroups.get(rowIndex).stream()
                                 .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
                                 .collect(Collectors.toList());
 
-                        for (TableCell cell : cells) {
-                            if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
-                                int globalIndex = cell.getColumnIndex() + columnOffset;
-                                consolidatedData.put(globalIndex, cleanContent(cell.getContent()));
-                                log.info("Data from row {} at index {}: {}", rowIndex, globalIndex,
-                                        cleanContent(cell.getContent()));
+                        if (!shouldSkipRow(cells)) {
+                            Map<Integer, String> rowData = dataRowsByIndex.computeIfAbsent(rowIndex, k -> new HashMap<>());
+
+                            for (TableCell cell : cells) {
+                                if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+                                    int globalIndex = cell.getColumnIndex() + columnOffset;
+                                    String content = cleanContent(cell.getContent());
+                                    rowData.put(globalIndex, content);
+                                    allDataColumns.add(globalIndex);  // Track this column index
+                                    log.info("Data from row {} at index {}: {}", rowIndex, globalIndex, content);
+                                }
                             }
                         }
+                    }
+                }
+
+                // Process headers with knowledge of all used data columns
+                // First process row 0 headers to establish base headers
+                for (Map.Entry<Integer, String> entry : row0Headers.entrySet()) {
+                    int index = entry.getKey();
+                    String header = entry.getValue();
+                    consolidatedHeaders.put(index, header);
+                    // Duplicate header if next column has data and isn't a row 1 header
+                    if (allDataColumns.contains(index + 1) && !row1Headers.containsKey(index + 1)) {
+                        consolidatedHeaders.put(index + 1, header);
+                    }
+                }
+
+                // Then process row 1 headers which override row 0 headers for their specific positions
+                for (Map.Entry<Integer, String> entry : row1Headers.entrySet()) {
+                    int index = entry.getKey();
+                    String header = entry.getValue();
+                    consolidatedHeaders.put(index, header);
+                    // Duplicate row 1 headers if next column has data and isn't another row 1 header position
+                    if (allDataColumns.contains(index + 1) && !row1Headers.containsKey(index + 1)) {
+                        consolidatedHeaders.put(index + 1, header);
                     }
                 }
             }
@@ -335,21 +312,25 @@ public class DocumentAnalysisService {
         }
 
         log.info("Final consolidated headers: {}", consolidatedHeaders);
-        log.info("Final consolidated data: {}", consolidatedData);
 
         if (!consolidatedHeaders.isEmpty()) {
             allTableRows.add(new TableRow(0, new HashMap<>(consolidatedHeaders), true));
         }
-        if (!consolidatedData.isEmpty()) {
-            allTableRows.add(new TableRow(1, new HashMap<>(consolidatedData), false));
+
+        // Add each data row while preserving row order
+        List<Integer> sortedRowIndices = new ArrayList<>(dataRowsByIndex.keySet());
+        Collections.sort(sortedRowIndices);
+
+        int rowIndex = 1;
+        for (Integer originalRowIndex : sortedRowIndices) {
+            Map<Integer, String> rowData = dataRowsByIndex.get(originalRowIndex);
+            if (!rowData.isEmpty()) {  // Only add non-empty rows
+                log.info("Final consolidated data: {}", rowData);
+                allTableRows.add(new TableRow(rowIndex++, rowData, false));
+            }
         }
 
         return allTableRows;
-    }
-
-    private String normalizeHeaderContent(String content) {
-        if (content == null) return "";
-        return content.replaceAll("\\s+", " ").trim().toUpperCase();
     }
 
     private TableResponseDTO mapToResponse(List<TableRow> rows) {
