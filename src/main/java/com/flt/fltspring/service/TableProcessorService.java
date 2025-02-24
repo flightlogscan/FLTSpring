@@ -105,15 +105,17 @@ public class TableProcessorService {
                     }
                 }
 
-                // Process headers with knowledge of all used data columns
+// Process headers with knowledge of all used data columns
                 // First process row 0 headers to establish base headers
                 for (Map.Entry<Integer, String> entry : row0Headers.entrySet()) {
                     int index = entry.getKey();
                     String header = entry.getValue();
-                    consolidatedHeaders.put(index, header);
-                    // Duplicate header if next column has data and isn't a row 1 header
-                    if (allDataColumns.contains(index + 1) && !row1Headers.containsKey(index + 1)) {
-                        consolidatedHeaders.put(index + 1, header);
+                    if (!row1Headers.containsKey(index)) {  // Only set if row1 doesn't have a header here
+                        consolidatedHeaders.put(index, header);
+                        // Duplicate header if next column has data and isn't a row 1 header
+                        if (allDataColumns.contains(index + 1) && !row1Headers.containsKey(index + 1) && !row0Headers.containsKey(index + 1)) {
+                            consolidatedHeaders.put(index + 1, header);
+                        }
                     }
                 }
 
@@ -122,8 +124,8 @@ public class TableProcessorService {
                     int index = entry.getKey();
                     String header = entry.getValue();
                     consolidatedHeaders.put(index, header);
-                    // Duplicate row 1 headers if next column has data and isn't another row 1 header position
-                    if (allDataColumns.contains(index + 1) && !row1Headers.containsKey(index + 1)) {
+                    // Duplicate row 1 headers if next column has data and isn't another header position
+                    if (allDataColumns.contains(index + 1) && !row1Headers.containsKey(index + 1) && !row0Headers.containsKey(index + 1)) {
                         consolidatedHeaders.put(index + 1, header);
                     }
                 }
