@@ -1,12 +1,8 @@
 package com.flt.fltspring.service;
 
-import com.azure.ai.documentintelligence.models.AnalyzeResult;
-import com.flt.fltspring.model.DocumentTableCellAdapter;
-import com.flt.fltspring.model.RowDTO;
-import com.flt.fltspring.model.TableResponseDTO;
+import com.flt.fltspring.model.TableCell;
 import com.flt.fltspring.model.TableRow;
-import com.flt.fltspring.model.dummy.DummyAnalyzeResult;
-import com.flt.fltspring.model.dummy.DummyCellAdapter;
+import com.flt.fltspring.model.TableStructure;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,14 +16,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import com.flt.fltspring.model.TableCell;
 
-@Slf4j
 @Service
+@Slf4j
 @RequiredArgsConstructor
-public class DocumentAnalysisService {
-    private final LogbookValidationService validationService;
-    private final TableDataTransformerService transformer;
+public class TableProcessorService {
 
     private static final List<String> UNWANTED_STRINGS = List.of(
             "I certify that",
@@ -35,103 +28,7 @@ public class DocumentAnalysisService {
             "AMT. FORWARDED"
     );
 
-    public TableResponseDTO analyzeDocument(AnalyzeResult analyzeResult) {
-        List<TableRow> tableRows = convertToTableRows(analyzeResult);
-        return processTableRows(tableRows);
-    }
-
-    public TableResponseDTO analyzeDummyDocument(DummyAnalyzeResult dummyResult) {
-        List<TableRow> tableRows = convertToTableRows(dummyResult);
-        return processTableRows(tableRows);
-    }
-
-    public TableResponseDTO processTableRows(List<TableRow> tableRows) {
-        log.info("Processing {} table rows", tableRows.size());
-        log.info("Input rows: {}", tableRows);
-        List<TableRow> transformedRows = transformer.transformData(tableRows);
-        log.info("After transformation: {} rows", transformedRows.size());
-        log.info("Transformed rows: {}", transformedRows);
-        List<TableRow> validatedRows = validationService.validateAndCorrect(transformedRows);
-        log.info("After validation: {} rows", validatedRows.size());
-        log.info("Validated rows: {}", validatedRows);
-        return mapToResponse(validatedRows);
-    }
-
-
-
-    private List<TableRow> convertToTableRows(final AnalyzeResult analyzeResult) {
-        if (analyzeResult.getTables() == null) {
-            log.warn("No tables found in analyze result");
-            return new ArrayList<>();
-        }
-
-        final List<TableStructure> tableStructures = analyzeResult.getTables().stream()
-                .map(table -> new TableStructure(
-                        table.getColumnCount(),
-                        table.getCells().stream()
-                                .map(DocumentTableCellAdapter::new)
-                                .collect(Collectors.toList())
-                ))
-                .collect(Collectors.toList());
-
-        return processTableStructures(tableStructures);
-    }
-
-    private List<TableRow> convertToTableRows(DummyAnalyzeResult dummyResult) {
-        if (dummyResult.getTables() == null) {
-            log.warn("No tables found in dummy analyze result");
-            return new ArrayList<>();
-        }
-
-        final List<TableStructure> tableStructures = dummyResult.getTables().stream()
-                .map(table -> new TableStructure(
-                        table.getColumnCount(),
-                        table.getCells().stream()
-                                .map(DummyCellAdapter::new)
-                                .collect(Collectors.toList())
-                ))
-                .collect(Collectors.toList());
-
-        return processTableStructures(tableStructures);
-    }
-
-    private static class TableStructure {
-        private final int columnCount;
-        private final List<TableCell> cells;
-
-        public TableStructure(int columnCount, List<TableCell> cells) {
-            this.columnCount = columnCount;
-            this.cells = cells;
-        }
-    }
-    private String cleanContent(String content) {
-        if (content == null) return null;
-        return content.replaceAll("\\r?\\n", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
-    }
-    private boolean shouldSkipTable(TableStructure table, List<TableStructure> allTables) {
-        if (allTables.size() <= 2) {
-            return false;
-        }
-        return table.cells.stream()
-                .map(TableCell::getContent)
-                .anyMatch(content ->
-                        content != null && UNWANTED_STRINGS.stream()
-                                .anyMatch(unwanted ->
-                                        content.toLowerCase().contains(unwanted.toLowerCase())));
-    }
-
-    private boolean shouldSkipRow(List<TableCell> rowCells) {
-        return rowCells.stream()
-                .map(TableCell::getContent)
-                .anyMatch(content ->
-                        content != null && UNWANTED_STRINGS.stream()
-                                .anyMatch(unwanted ->
-                                        content.toLowerCase().contains(unwanted.toLowerCase())));
-    }
-
-    private List<TableRow> processTableStructures(List<TableStructure> tableStructures) {
+    public List<TableRow> processTables(List<TableStructure> tableStructures) {
         final List<TableRow> allTableRows = new ArrayList<>();
         Map<Integer, String> consolidatedHeaders = new HashMap<>();
         Map<Integer, Map<Integer, String>> dataRowsByIndex = new HashMap<>(); // Key is row index, value is the row data
@@ -145,7 +42,7 @@ public class DocumentAnalysisService {
             }
 
             // Group cells by row
-            Map<Integer, List<TableCell>> rowGroups = table.cells.stream()
+            Map<Integer, List<TableCell>> rowGroups = table.getCells().stream()
                     .collect(Collectors.groupingBy(TableCell::getRowIndex));
 
             List<Integer> rowIndices = new ArrayList<>(rowGroups.keySet());
@@ -159,7 +56,7 @@ public class DocumentAnalysisService {
                 if (rowGroups.containsKey(0)) {
                     List<TableCell> cells = rowGroups.get(0).stream()
                             .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
-                            .collect(Collectors.toList());
+                            .toList();
 
                     for (TableCell cell : cells) {
                         if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
@@ -174,7 +71,7 @@ public class DocumentAnalysisService {
                 if (rowGroups.containsKey(1)) {
                     List<TableCell> cells = rowGroups.get(1).stream()
                             .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
-                            .collect(Collectors.toList());
+                            .toList();
 
                     for (TableCell cell : cells) {
                         if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
@@ -232,7 +129,7 @@ public class DocumentAnalysisService {
                 }
             }
 
-            columnOffset += table.columnCount;
+            columnOffset += table.getColumnCount();
         }
 
         log.info("Final consolidated headers: {}", consolidatedHeaders);
@@ -257,31 +154,30 @@ public class DocumentAnalysisService {
         return allTableRows;
     }
 
-    private TableResponseDTO mapToResponse(List<TableRow> rows) {
-        log.info("Mapping {} rows to response", rows.size());
-        final TableResponseDTO response = new TableResponseDTO();
-        final List<RowDTO> dtos = rows.stream()
-                .map(this::convertToRowDTO)
-                .filter(dto -> dto != null)
-                .collect(Collectors.toList());
-        log.info("Converted to {} DTOs", dtos.size());
-        log.info("Final DTOs: {}", dtos);
-        response.setRows(dtos);
-        return response;
+    private String cleanContent(String content) {
+        if (content == null) return null;
+        return content.replaceAll("\\r?\\n", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+    private boolean shouldSkipTable(TableStructure table, List<TableStructure> allTables) {
+        if (allTables.size() <= 2) {
+            return false;
+        }
+        return table.getCells().stream()
+                .map(TableCell::getContent)
+                .anyMatch(content ->
+                        content != null && UNWANTED_STRINGS.stream()
+                                .anyMatch(unwanted ->
+                                        content.toLowerCase().contains(unwanted.toLowerCase())));
     }
 
-    private RowDTO convertToRowDTO(TableRow row) {
-        if (row == null) {
-            log.info("Skipping null row");
-            return null;
-        }
-
-        log.info("Converting row to DTO: {}", row);
-        final RowDTO dto = new RowDTO();
-        dto.setRowIndex(row.getRowIndex());
-        dto.setContent(row.getColumnData());
-        dto.setHeader(row.isHeader());
-        log.info("Created DTO: {}", dto);
-        return dto;
+    private boolean shouldSkipRow(List<TableCell> rowCells) {
+        return rowCells.stream()
+                .map(TableCell::getContent)
+                .anyMatch(content ->
+                        content != null && UNWANTED_STRINGS.stream()
+                                .anyMatch(unwanted ->
+                                        content.toLowerCase().contains(unwanted.toLowerCase())));
     }
 }

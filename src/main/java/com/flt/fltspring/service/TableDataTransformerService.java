@@ -183,6 +183,6 @@ public class TableDataTransformerService {
         transformed = transformed.replaceAll("[^A-Z]", "");
 
         // Take first 4 characters (or less if shorter)
-        return transformed.substring(0, Math.min(transformed.length(), 4));
+        return transformed;
     }
 }
