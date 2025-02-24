@@ -1,6 +1,5 @@
 package com.flt.fltspring.service;
 
-import com.flt.fltspring.model.LogbookType;
 import com.flt.fltspring.model.TableRow;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +9,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -21,18 +19,11 @@ public class LogbookValidationService {
     public void init() {
 
         this.headerMap = new HashMap<>();
-        headerMap.put("engine land", "SINGLE-ENGINE LAND");
+        headerMap.put("single- engine land", "SINGLE-ENGINE LAND");
         headerMap.put("multi- engine land", "MULTI-ENGINE LAND");
-        headerMap.put("date", "DATE");
-        headerMap.put("aircraft type", "AIRCRAFT TYPE");
-        headerMap.put("aircraft ident", "AIRCRAFT IDENT");
-        headerMap.put("from", "FROM");
-        headerMap.put("to", "TO");
-        headerMap.put("nr inst. app.", "NR INST. APP.");
-        headerMap.put("remarks and endorsements", "REMARKS AND ENDORSEMENTS");
-        headerMap.put("nr t/o", "NR T/O");
-        headerMap.put("nr ldg", "NR LDG");
 
+        //Potential to mis-map single to multi or vice versa here. Not sure on solution yet.
+        headerMap.put("engine land", "SINGLE-ENGINE LAND");
     }
 
     public List<TableRow> validateAndCorrect(List<TableRow> scannedRows) {

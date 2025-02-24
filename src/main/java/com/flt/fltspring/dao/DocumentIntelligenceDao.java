@@ -22,7 +22,7 @@ import java.util.Collections;
 public class DocumentIntelligenceDao {
     private static final String ENDPOINT = "https://flight-log-scan.cognitiveservices.azure.com/";
 
-    public AnalyzeResult getDocumentAnalysis(BinaryData documentData, String flsDocumentAiSecret) {
+    public AnalyzeResult analyzeDocumentSync(BinaryData documentData, String flsDocumentAiSecret) {
         log.info("Beginning Azure document analysis");
 
         //TODO: Make singleton. Don't create client on per request basis.

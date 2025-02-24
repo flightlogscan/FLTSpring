@@ -6,7 +6,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.dao.DocumentIntelligenceDao;
 import com.flt.fltspring.model.AnalyzeImageResponse;
 import com.flt.fltspring.model.TableResponseDTO;
-import com.flt.fltspring.service.DocumentAnalysisService;
+import com.flt.fltspring.model.TableRow;
+import com.flt.fltspring.model.TableStructure;
+import com.flt.fltspring.service.ResultConverterService;
+import com.flt.fltspring.service.RowProcessorService;
+import com.flt.fltspring.service.TableProcessorService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +19,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @EnableCaching
@@ -27,12 +33,14 @@ public class ImageAnalyzerRestController {
     private final String flsDocumentAiSecret;
 
     private final ObjectMapper objectMapper;
-    private final DocumentAnalysisService documentAnalysisService;
+    private final ResultConverterService resultConverterService;
     private final DocumentIntelligenceDao documentIntelligenceDao;
+    private final RowProcessorService rowProcessorService;
+    private final TableProcessorService tableProcessorService;
+
 
     @RequestMapping(method = RequestMethod.POST, path = "/analyze")
-    public ResponseEntity<AnalyzeImageResponse> submitAnalyzeImage(
-            final HttpServletRequest request) {
+    public ResponseEntity<AnalyzeImageResponse> submitAnalyzeImage(final HttpServletRequest request) {
 
         try {
             log.info("Starting document analysis");
@@ -40,9 +48,12 @@ public class ImageAnalyzerRestController {
             final BinaryData documentData = BinaryData.fromBytes(request.getInputStream().readAllBytes());
             log.info("Successfully read binary data, length: {}", documentData.getLength());
 
-            final AnalyzeResult analyzeResult = documentIntelligenceDao.getDocumentAnalysis(documentData, flsDocumentAiSecret);
+            final AnalyzeResult analyzeResult = documentIntelligenceDao
+                    .analyzeDocumentSync(documentData, flsDocumentAiSecret);
 
-            final TableResponseDTO tableResponse = documentAnalysisService.analyzeDocument(analyzeResult);
+            final List<TableStructure> tables = resultConverterService.convertToTable(analyzeResult);
+            final List<TableRow> tableRows = tableProcessorService.processTables(tables);
+            final TableResponseDTO tableResponse = rowProcessorService.processTableRows(tableRows);
 
             final AnalyzeImageResponse response = AnalyzeImageResponse.builder()
                     .status("SUCCESS")
