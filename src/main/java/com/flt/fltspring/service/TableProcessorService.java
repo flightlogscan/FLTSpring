@@ -152,8 +152,39 @@ public class TableProcessorService {
 
         log.info("Final consolidated headers: {}", consolidatedHeaders);
 
+        // Keep track of parent headers for each column
+        Map<Integer, String> parentHeadersMap = new HashMap<>();
+        
+        // Process the row0Headers to track parent headers
+        for (TableStructure table : tableStructures) {
+            if (shouldSkipTable(table, tableStructures)) {
+                continue;
+            }
+            
+            Map<Integer, List<TableCell>> rowGroups = table.getCells().stream()
+                    .collect(Collectors.groupingBy(TableCell::getRowIndex));
+                    
+            // Only process row 0 for parent headers
+            if (rowGroups.containsKey(0)) {
+                for (TableCell cell : rowGroups.get(0)) {
+                    if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+                        String header = cleanContent(cell.getContent());
+                        // Apply header to all columns it spans
+                        int columnSpan = cell.getColumnSpan();
+                        int startIdx = cell.getColumnIndex();
+                        
+                        for (int i = 0; i < columnSpan; i++) {
+                            int colIdx = startIdx + i;
+                            parentHeadersMap.put(colIdx, header);
+                        }
+                    }
+                }
+            }
+        }
+
         if (!consolidatedHeaders.isEmpty()) {
-            allTableRows.add(new TableRow(0, new HashMap<>(consolidatedHeaders), true));
+            // Add headers row with its parent headers
+            allTableRows.add(new TableRow(0, new HashMap<>(consolidatedHeaders), true, new HashMap<>(parentHeadersMap)));
         }
 
         // Add each data row while preserving row order
@@ -165,7 +196,16 @@ public class TableProcessorService {
             Map<Integer, String> rowData = dataRowsByIndex.get(originalRowIndex);
             if (!rowData.isEmpty()) {  // Only add non-empty rows
                 log.info("Final consolidated data: {}", rowData);
-                allTableRows.add(new TableRow(rowIndex++, rowData, false));
+                
+                // Create new row with parent headers
+                TableRow dataRow = TableRow.builder()
+                    .rowIndex(rowIndex++)
+                    .columnData(rowData)
+                    .isHeader(false)
+                    .parentHeaders(new HashMap<>(parentHeadersMap))
+                    .build();
+                
+                allTableRows.add(dataRow);
             }
         }
 

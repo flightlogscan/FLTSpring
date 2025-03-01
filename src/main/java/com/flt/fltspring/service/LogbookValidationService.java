@@ -37,7 +37,7 @@ public class LogbookValidationService {
         final TableRow finalHeaderRow = headerRow;
         final List<TableRow> dataRows = scannedRows.stream()
                 .filter(row -> !row.equals(finalHeaderRow))
-                .map(row -> new TableRow(row.getRowIndex(), row.getColumnData(), false))
+                .map(row -> new TableRow(row.getRowIndex(), row.getColumnData(), false, new HashMap<>()))
                 .toList();
 
         if (headerRow != null) {
@@ -48,7 +48,7 @@ public class LogbookValidationService {
                 consolidatedHeaders.put(column, canonicalHeader);
             });
 
-            headerRow = new TableRow(0, consolidatedHeaders, true);
+            headerRow = new TableRow(0, consolidatedHeaders, true, new HashMap<>());
         }
 
         List<TableRow> result = new ArrayList<>();

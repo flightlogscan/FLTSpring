@@ -8,5 +8,6 @@ import java.util.Map;
 public class RowDTO {
     private int rowIndex;
     private Map<Integer, String> content;
+    private Map<Integer, String> parentHeaders;
     private boolean isHeader;
 }
