@@ -1,20 +1,40 @@
 package com.flt.fltspring.claims;
 
 import com.google.common.collect.ImmutableSet;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-public final class AdminAuthenticator {
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
-    private AdminAuthenticator() {}
+@Component
+public class AdminAuthenticator {
 
-    // Not the most scalable solution since it requires hardcoding and deploying
-    // But good enough for now! We should use Firebase Claims.
-    private static final ImmutableSet<String> ADMIN_EMAILS = ImmutableSet.of(
-                    "will.janis@gmail.com",
-                    "flightlogtracer@gmail.com",
-                    "flightlogtracer@flightlogtracer.com",
-                    "lancedesi@msn.com");
+    private final Set<String> adminEmails;
 
-    public static boolean isAdmin(final String emailToAuthenticate) {
-        return ADMIN_EMAILS.contains(emailToAuthenticate);
+    public AdminAuthenticator(@Value("${app.admin-emails:}") String configuredAdmins) {
+        Set<String> emails = new HashSet<>();
+        
+        // Add default admins
+        emails.add("flightlogtracer@gmail.com");
+        emails.add("flightlogtracer@flightlogtracer.com");
+        
+        // Add any configured admins from properties
+        if (configuredAdmins != null && !configuredAdmins.isEmpty()) {
+            Arrays.stream(configuredAdmins.split(","))
+                  .map(String::trim)
+                  .filter(email -> !email.isEmpty())
+                  .forEach(emails::add);
+        }
+        
+        this.adminEmails = ImmutableSet.copyOf(emails);
+    }
+
+    public boolean isAdmin(final String emailToAuthenticate) {
+        if (emailToAuthenticate == null || emailToAuthenticate.isBlank()) {
+            return false;
+        }
+        return adminEmails.contains(emailToAuthenticate);
     }
 }

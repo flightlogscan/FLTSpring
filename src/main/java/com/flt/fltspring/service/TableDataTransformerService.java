@@ -152,37 +152,58 @@ public class TableDataTransformerService {
     }
 
     private String transformInteger(String value) {
-        // For integer fields, first replace commonly misidentified characters
-        String transformed = value;
-        for (Map.Entry<String, String> replacement : NUMERIC_REPLACEMENTS.entrySet()) {
-            transformed = transformed.replace(replacement.getKey(), replacement.getValue());
-        }
-
-        // Then remove any remaining non-numeric characters
-        transformed = transformed.replaceAll("[^0-9]", "");
-
-        // If we end up with nothing, return "0"
-        return transformed.isEmpty() ? "0" : transformed;
+        return transformWithReplacements(value, NUMERIC_REPLACEMENTS, "[^0-9]", "0");
     }
 
     private String transformAirportCode(String value) {
-        // For airport codes, first convert to uppercase
+        // First convert to uppercase
         String transformed = value.toUpperCase();
-
-        // Replace commonly misidentified numbers with letters
-        for (Map.Entry<String, String> replacement : AIRPORT_CODE_REPLACEMENTS.entrySet()) {
-            transformed = transformed.replace(replacement.getKey(), replacement.getValue());
-        }
-
+        
+        // Apply replacements
+        transformed = transformWithReplacements(transformed, AIRPORT_CODE_REPLACEMENTS, null, null);
+        
         // If it already matches airport code pattern, return as is
         if (AIRPORT_CODE_PATTERN.matcher(transformed).matches()) {
             return transformed;
         }
-
+        
         // Otherwise, remove any remaining numbers and non-letters
         transformed = transformed.replaceAll("[^A-Z]", "");
-
+        
         // Take first 4 characters (or less if shorter)
+        return transformed.length() > 4 ? transformed.substring(0, 4) : transformed;
+    }
+    
+    /**
+     * Applies character replacements and filtering to transform values
+     * @param value Original string value
+     * @param replacements Map of character replacements to apply
+     * @param filterPattern Regular expression pattern to filter out characters (can be null)
+     * @param defaultValue Default value if result is empty (can be null)
+     * @return Transformed string
+     */
+    private String transformWithReplacements(String value, Map<String, String> replacements, 
+                                            String filterPattern, String defaultValue) {
+        if (value == null || value.isEmpty()) {
+            return defaultValue != null ? defaultValue : "";
+        }
+        
+        // Apply character replacements
+        String transformed = value;
+        for (Map.Entry<String, String> replacement : replacements.entrySet()) {
+            transformed = transformed.replace(replacement.getKey(), replacement.getValue());
+        }
+        
+        // Apply filter pattern if provided
+        if (filterPattern != null) {
+            transformed = transformed.replaceAll(filterPattern, "");
+            
+            // Return default if empty
+            if (transformed.isEmpty() && defaultValue != null) {
+                return defaultValue;
+            }
+        }
+        
         return transformed;
     }
 }

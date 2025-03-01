@@ -8,46 +8,62 @@ import com.azure.ai.documentintelligence.models.AnalyzeResultOperation;
 import com.azure.ai.documentintelligence.models.DocumentAnalysisFeature;
 import com.azure.ai.documentintelligence.models.StringIndexType;
 import com.azure.core.credential.AzureKeyCredential;
+import com.azure.core.exception.AzureException;
 import com.azure.core.util.BinaryData;
 import com.azure.core.util.polling.SyncPoller;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class DocumentIntelligenceDao {
-    private static final String ENDPOINT = "https://flight-log-scan.cognitiveservices.azure.com/";
-
-    public AnalyzeResult analyzeDocumentSync(BinaryData documentData, String flsDocumentAiSecret) {
-        log.info("Beginning Azure document analysis");
-
-        //TODO: Make singleton. Don't create client on per request basis.
-        final DocumentIntelligenceClient client = new DocumentIntelligenceClientBuilder()
+    private final DocumentIntelligenceClient client;
+    
+    public DocumentIntelligenceDao(@Value("${azure.document-intelligence.endpoint:https://flight-log-scan.cognitiveservices.azure.com/}") String endpoint,
+                                   String flsDocumentAiSecret) {
+        this.client = new DocumentIntelligenceClientBuilder()
                 .credential(new AzureKeyCredential(flsDocumentAiSecret))
-                .endpoint(ENDPOINT)
+                .endpoint(endpoint)
                 .buildClient();
+        log.info("Document Intelligence client initialized with endpoint: {}", endpoint);
+    }
 
-        final AnalyzeDocumentRequest analyzeRequest = new AnalyzeDocumentRequest()
-                .setBase64Source(documentData.toBytes());
+    public AnalyzeResult analyzeDocumentSync(BinaryData documentData) throws AzureException, TimeoutException {
+        if (documentData == null || documentData.getLength() == 0) {
+            throw new IllegalArgumentException("Document data cannot be null or empty");
+        }
+        
+        log.info("Beginning Azure document analysis for document of size: {} bytes", documentData.getLength());
 
-        final SyncPoller<AnalyzeResultOperation, AnalyzeResult> analyzePoller = client.beginAnalyzeDocument(
-                "prebuilt-layout",
-                "1",
-                "en-US",
-                StringIndexType.UTF16CODE_UNIT,
-                Collections.singletonList(DocumentAnalysisFeature.KEY_VALUE_PAIRS),
-                null,
-                null,
-                Collections.emptyList(),
-                analyzeRequest
-        );
+        try {
+            final AnalyzeDocumentRequest analyzeRequest = new AnalyzeDocumentRequest()
+                    .setBase64Source(documentData.toBytes());
 
-        final AnalyzeResult result = analyzePoller.getFinalResult();
-        log.info("Completed Azure document analysis");
-        return result;
+            final SyncPoller<AnalyzeResultOperation, AnalyzeResult> analyzePoller = client.beginAnalyzeDocument(
+                    "prebuilt-layout",
+                    "1",
+                    "en-US",
+                    StringIndexType.UTF16CODE_UNIT,
+                    Collections.singletonList(DocumentAnalysisFeature.KEY_VALUE_PAIRS),
+                    null,
+                    null,
+                    Collections.emptyList(),
+                    analyzeRequest
+            );
+
+            final AnalyzeResult result = analyzePoller.getFinalResult();
+            log.info("Successfully completed Azure document analysis");
+            return result;
+        } catch (AzureException e) {
+            log.error("Azure document analysis failed with error: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error during document analysis", e);
+            throw e;
+        }
     }
 }
