@@ -50,12 +50,23 @@ public class RowProcessorService {
             return null;
         }
 
-        log.info("Converting row to DTO: {}", row);
+        if (log.isDebugEnabled()) {
+            log.debug("Converting row to DTO: {}", row);
+        }
+        
         final RowDTO dto = new RowDTO();
         dto.setRowIndex(row.getRowIndex());
         dto.setContent(row.getColumnData());
         dto.setHeader(row.isHeader());
-        log.info("Created DTO: {}", dto);
+        
+        // Include parent headers if available
+        if (row.getParentHeaders() != null && !row.getParentHeaders().isEmpty()) {
+            dto.setParentHeaders(row.getParentHeaders());
+        }
+        
+        if (log.isDebugEnabled()) {
+            log.debug("Created DTO: {}", dto);
+        }
         return dto;
     }
 }

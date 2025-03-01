@@ -2,21 +2,26 @@ package com.flt.fltspring.service;
 
 import com.flt.fltspring.config.ColumnConfig;
 import com.flt.fltspring.model.TableRow;
+import com.flt.fltspring.service.transform.AirportCodeTransformer;
+import com.flt.fltspring.service.transform.ContextValidator;
+import com.flt.fltspring.service.transform.HeaderMatcher;
+import com.flt.fltspring.service.transform.TextTransformer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
-
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class TableDataTransformerService {
 
     private final ColumnConfig[] columnConfigs;
+    private final TextTransformer textTransformer;
+    private final AirportCodeTransformer airportCodeTransformer;
+    private final HeaderMatcher headerMatcher;
+    private final ContextValidator contextValidator;
 
+<<<<<<< Updated upstream
     public TableDataTransformerService(ColumnConfig[] columnConfigs) {
         this.columnConfigs = columnConfigs;
     }
@@ -71,6 +76,12 @@ public class TableDataTransformerService {
         "TOTAL", "DAY", "NIGHT", "ACTUAL INSTRUMENT", "SIMULATED INSTRUMENT", 
         "CROSS COUNTRY", "NUMBER OF LANDINGS", "APPROACHES", "REMARKS"
     );
+=======
+    /**
+     * Transform table data by cleaning and converting values based on 
+     * column types and domain-specific rules for flight logbooks
+     */
+>>>>>>> Stashed changes
 
     public List<TableRow> transformData(List<TableRow> rows) {
         if (rows.isEmpty()) {
@@ -101,7 +112,11 @@ public class TableDataTransformerService {
         // For each header, including duplicated ones
         headerRow.getColumnData().forEach((index, headerValue) -> {
             // Clean and normalize the header first
+<<<<<<< Updated upstream
             String normalizedHeader = normalizeHeaderValue(headerValue);
+=======
+            String normalizedHeader = textTransformer.normalizeHeaderValue(headerValue);
+>>>>>>> Stashed changes
             
             // First try exact match with normalized header
             for (ColumnConfig config : columnConfigs) {
@@ -115,7 +130,11 @@ public class TableDataTransformerService {
             }
 
             // Try fuzzy matching with common flight logbook headers
+<<<<<<< Updated upstream
             String matchedCommonHeader = findClosestMatch(normalizedHeader, COMMON_FLIGHT_HEADERS);
+=======
+            String matchedCommonHeader = headerMatcher.findClosestMatch(normalizedHeader, null);
+>>>>>>> Stashed changes
             if (matchedCommonHeader != null) {
                 // If we matched a common header, look up its type in our configs
                 for (ColumnConfig config : columnConfigs) {
@@ -153,11 +172,19 @@ public class TableDataTransformerService {
                         index, headerValue, bestType, bestMatch);
             } else {
                 // Type inference based on content patterns
+<<<<<<< Updated upstream
                 if (inferAirportCodeType(headerValue)) {
                     typeMap.put(index, "AIRPORT_CODE");
                     log.info("Mapped column {} ({}) to AIRPORT_CODE [inferred from name]", 
                             index, headerValue);
                 } else if (inferNumericType(headerValue)) {
+=======
+                if (headerMatcher.inferAirportCodeType(headerValue)) {
+                    typeMap.put(index, "AIRPORT_CODE");
+                    log.info("Mapped column {} ({}) to AIRPORT_CODE [inferred from name]", 
+                            index, headerValue);
+                } else if (headerMatcher.inferNumericType(headerValue)) {
+>>>>>>> Stashed changes
                     typeMap.put(index, "INTEGER");
                     log.info("Mapped column {} ({}) to INTEGER [inferred from name]", 
                             index, headerValue);
@@ -298,9 +325,19 @@ public class TableDataTransformerService {
         });
         
         // Second pass: context-aware transformations for special cases
+<<<<<<< Updated upstream
         transformSpecialCases(transformedData, columnTypes);
+=======
+        contextValidator.validateRowContext(transformedData, columnTypes);
+>>>>>>> Stashed changes
 
-        return new TableRow(row.getRowIndex(), transformedData, false);
+        // Preserve parent headers from original row
+        return TableRow.builder()
+            .rowIndex(row.getRowIndex())
+            .columnData(transformedData)
+            .isHeader(false)
+            .parentHeaders(row.getParentHeaders())
+            .build();
     }
     
     /**
@@ -392,14 +429,15 @@ public class TableDataTransformerService {
 
         switch (columnType) {
             case "INTEGER":
-                return transformInteger(value);
+                return textTransformer.transformInteger(value);
             case "AIRPORT_CODE":
-                return transformAirportCode(value);
+                return airportCodeTransformer.transformAirportCode(value);
             case "STRING":
             default:
                 return value;
         }
     }
+<<<<<<< Updated upstream
 
     private String transformInteger(String value) {
         return transformWithReplacements(value, NUMERIC_REPLACEMENTS, "[^0-9]", "0");
@@ -532,4 +570,6 @@ public class TableDataTransformerService {
         
         return transformed;
     }
+=======
+>>>>>>> Stashed changes
 }
