@@ -12,4 +12,5 @@ public class DummyCell {
     private int rowIndex;
     private int columnIndex;
     private String content;
+    private int columnSpan = 1;
 }
