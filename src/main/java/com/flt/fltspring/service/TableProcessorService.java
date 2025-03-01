@@ -105,28 +105,44 @@ public class TableProcessorService {
                     }
                 }
 
-// Process headers with knowledge of all used data columns
+// Process headers with knowledge of all used data columns and columnSpan information
+                // Map to track which columns are covered by a spanning header
+                Set<Integer> columnsWithSpannedHeader = new HashSet<>();
+                
                 // First process row 0 headers to establish base headers
-                for (Map.Entry<Integer, String> entry : row0Headers.entrySet()) {
-                    int index = entry.getKey();
-                    String header = entry.getValue();
-                    if (!row1Headers.containsKey(index)) {  // Only set if row1 doesn't have a header here
-                        consolidatedHeaders.put(index, header);
-                        // Duplicate header if next column has data and isn't a row 1 header
-                        if (allDataColumns.contains(index + 1) && !row1Headers.containsKey(index + 1) && !row0Headers.containsKey(index + 1)) {
-                            consolidatedHeaders.put(index + 1, header);
+                for (TableCell cell : rowGroups.getOrDefault(0, Collections.emptyList())) {
+                    if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+                        int startIndex = cell.getColumnIndex() + columnOffset;
+                        int columnSpan = cell.getColumnSpan();
+                        String header = cleanContent(cell.getContent());
+                        
+                        // Apply the header to all columns it spans
+                        for (int i = 0; i < columnSpan; i++) {
+                            int spanIndex = startIndex + i;
+                            // Only set if row1 doesn't have a header here
+                            if (!row1Headers.containsKey(spanIndex)) {
+                                consolidatedHeaders.put(spanIndex, header);
+                                columnsWithSpannedHeader.add(spanIndex);
+                                log.info("Row 0 header spans column {}: {}", spanIndex, header);
+                            }
                         }
                     }
                 }
 
                 // Then process row 1 headers which override row 0 headers for their specific positions
-                for (Map.Entry<Integer, String> entry : row1Headers.entrySet()) {
-                    int index = entry.getKey();
-                    String header = entry.getValue();
-                    consolidatedHeaders.put(index, header);
-                    // Duplicate row 1 headers if next column has data and isn't another header position
-                    if (allDataColumns.contains(index + 1) && !row1Headers.containsKey(index + 1) && !row0Headers.containsKey(index + 1)) {
-                        consolidatedHeaders.put(index + 1, header);
+                for (TableCell cell : rowGroups.getOrDefault(1, Collections.emptyList())) {
+                    if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+                        int startIndex = cell.getColumnIndex() + columnOffset;
+                        int columnSpan = cell.getColumnSpan();
+                        String header = cleanContent(cell.getContent());
+                        
+                        // Apply the header to all columns it spans
+                        for (int i = 0; i < columnSpan; i++) {
+                            int spanIndex = startIndex + i;
+                            consolidatedHeaders.put(spanIndex, header);
+                            columnsWithSpannedHeader.add(spanIndex);
+                            log.info("Row 1 header spans column {}: {}", spanIndex, header);
+                        }
                     }
                 }
             }
