@@ -2,6 +2,11 @@ package com.flt.fltspring.service;
 
 import com.flt.fltspring.config.ColumnConfig;
 import com.flt.fltspring.model.TableRow;
+import com.flt.fltspring.service.transform.AirportCodeTransformer;
+import com.flt.fltspring.service.transform.ContextValidator;
+import com.flt.fltspring.service.transform.HeaderMatcher;
+import com.flt.fltspring.service.transform.TextTransformer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -9,46 +14,22 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class TableDataTransformerService {
 
     private final ColumnConfig[] columnConfigs;
+    private final TextTransformer textTransformer;
+    private final AirportCodeTransformer airportCodeTransformer;
+    private final HeaderMatcher headerMatcher;
+    private final ContextValidator contextValidator;
 
-    public TableDataTransformerService(ColumnConfig[] columnConfigs) {
-        this.columnConfigs = columnConfigs;
-    }
-
-    // Characters commonly misidentified as numbers
-    private static final Map<String, String> NUMERIC_REPLACEMENTS = new HashMap<>() {{
-        put("O", "0");
-        put("o", "0");
-        put("l", "1");
-        put("I", "1");
-        put("i", "1");
-        put("/", "1");
-        put("\\", "1");
-        put("S", "5");
-        put("s", "5");
-        put("Z", "2");
-        put("z", "2");
-        put("b", "6");
-        put("B", "8");
-    }};
-
-    // Characters commonly misidentified as letters
-    private static final Map<String, String> AIRPORT_CODE_REPLACEMENTS = new HashMap<>() {{
-        put("0", "O");
-        put("1", "I");
-        put("2", "Z");
-        put("5", "S");
-        put("8", "B");
-    }};
-
-    private static final Pattern AIRPORT_CODE_PATTERN = Pattern.compile("^[A-Z]{3,4}$");
-
+    /**
+     * Transform table data by cleaning and converting values based on
+     * column types and domain-specific rules for flight logbooks
+     */
     public List<TableRow> transformData(List<TableRow> rows) {
         if (rows.isEmpty()) {
             return rows;
@@ -77,13 +58,31 @@ public class TableDataTransformerService {
 
         // For each header, including duplicated ones
         headerRow.getColumnData().forEach((index, headerValue) -> {
-            // First try exact match
+            // Clean and normalize the header first
+            String normalizedHeader = textTransformer.normalizeHeaderValue(headerValue);
+
+            // First try exact match with normalized header
             for (ColumnConfig config : columnConfigs) {
-                if (headerValue.equals(config.getFieldName())) {
+                if (normalizedHeader.equals(config.getFieldName()) ||
+                        headerValue.equals(config.getFieldName())) {
                     typeMap.put(index, config.getType());
                     log.info("Mapped column {} ({}) to type {} [exact match]",
                             index, headerValue, config.getType());
                     return;  // Found exact match, no need to continue
+                }
+            }
+
+            // Try fuzzy matching with common flight logbook headers
+            String matchedCommonHeader = headerMatcher.findClosestMatch(normalizedHeader, null);
+            if (matchedCommonHeader != null) {
+                // If we matched a common header, look up its type in our configs
+                for (ColumnConfig config : columnConfigs) {
+                    if (matchedCommonHeader.equals(config.getFieldName())) {
+                        typeMap.put(index, config.getType());
+                        log.info("Mapped column {} ({}) to type {} [fuzzy match with {}]",
+                                index, headerValue, config.getType(), matchedCommonHeader);
+                        return;
+                    }
                 }
             }
 
@@ -93,8 +92,12 @@ public class TableDataTransformerService {
             int bestMatchLength = 0;
 
             for (ColumnConfig config : columnConfigs) {
+                // Try to match with normalized header first
+                boolean normalizedContains = normalizedHeader.contains(config.getFieldName());
+                boolean originalContains = headerValue.contains(config.getFieldName());
+
                 // If header contains config field name and it's longer than our current best match
-                if (headerValue.contains(config.getFieldName()) &&
+                if ((normalizedContains || originalContains) &&
                         config.getFieldName().length() > bestMatchLength) {
                     bestMatch = config.getFieldName();
                     bestType = config.getType();
@@ -107,8 +110,19 @@ public class TableDataTransformerService {
                 log.info("Mapped column {} ({}) to type {} [partial match with {}]",
                         index, headerValue, bestType, bestMatch);
             } else {
-                log.warn("No match found for header {}, defaulting to STRING", headerValue);
-                typeMap.put(index, "STRING");
+                // Type inference based on content patterns
+                if (headerMatcher.inferAirportCodeType(headerValue)) {
+                    typeMap.put(index, "AIRPORT_CODE");
+                    log.info("Mapped column {} ({}) to AIRPORT_CODE [inferred from name]",
+                            index, headerValue);
+                } else if (headerMatcher.inferNumericType(headerValue)) {
+                    typeMap.put(index, "INTEGER");
+                    log.info("Mapped column {} ({}) to INTEGER [inferred from name]",
+                            index, headerValue);
+                } else {
+                    log.warn("No match found for header {}, defaulting to STRING", headerValue);
+                    typeMap.put(index, "STRING");
+                }
             }
         });
 
@@ -121,16 +135,30 @@ public class TableDataTransformerService {
         }
 
         Map<Integer, String> transformedData = new HashMap<>();
+        Map<Integer, String> originalData = row.getColumnData();
 
-        row.getColumnData().forEach((index, value) -> {
+        // First pass: do standard transformations on all fields
+        originalData.forEach((index, value) -> {
             String type = columnTypes.getOrDefault(index, "STRING");
             String transformedValue = transformValue(value, type);
-            log.info("Transformed value at index {} from '{}' to '{}' using type {}",
-                    index, value, transformedValue, type);
             transformedData.put(index, transformedValue);
+
+            if (log.isDebugEnabled() && !value.equals(transformedValue)) {
+                log.debug("Transformed value at index {} from '{}' to '{}' using type {}",
+                        index, value, transformedValue, type);
+            }
         });
 
-        return new TableRow(row.getRowIndex(), transformedData, false);
+        // Second pass: context-aware transformations for special cases
+        contextValidator.validateRowContext(transformedData, columnTypes);
+
+        // Preserve parent headers from original row
+        return TableRow.builder()
+                .rowIndex(row.getRowIndex())
+                .columnData(transformedData)
+                .isHeader(false)
+                .parentHeaders(row.getParentHeaders())
+                .build();
     }
 
     private String transformValue(String value, String columnType) {
@@ -142,68 +170,12 @@ public class TableDataTransformerService {
 
         switch (columnType) {
             case "INTEGER":
-                return transformInteger(value);
+                return textTransformer.transformInteger(value);
             case "AIRPORT_CODE":
-                return transformAirportCode(value);
+                return airportCodeTransformer.transformAirportCode(value);
             case "STRING":
             default:
                 return value;
         }
-    }
-
-    private String transformInteger(String value) {
-        return transformWithReplacements(value, NUMERIC_REPLACEMENTS, "[^0-9]", "0");
-    }
-
-    private String transformAirportCode(String value) {
-        // First convert to uppercase
-        String transformed = value.toUpperCase();
-        
-        // Apply replacements
-        transformed = transformWithReplacements(transformed, AIRPORT_CODE_REPLACEMENTS, null, null);
-        
-        // If it already matches airport code pattern, return as is
-        if (AIRPORT_CODE_PATTERN.matcher(transformed).matches()) {
-            return transformed;
-        }
-        
-        // Otherwise, remove any remaining numbers and non-letters
-        transformed = transformed.replaceAll("[^A-Z]", "");
-        
-        // Take first 4 characters (or less if shorter)
-        return transformed.length() > 4 ? transformed.substring(0, 4) : transformed;
-    }
-    
-    /**
-     * Applies character replacements and filtering to transform values
-     * @param value Original string value
-     * @param replacements Map of character replacements to apply
-     * @param filterPattern Regular expression pattern to filter out characters (can be null)
-     * @param defaultValue Default value if result is empty (can be null)
-     * @return Transformed string
-     */
-    private String transformWithReplacements(String value, Map<String, String> replacements, 
-                                            String filterPattern, String defaultValue) {
-        if (value == null || value.isEmpty()) {
-            return defaultValue != null ? defaultValue : "";
-        }
-        
-        // Apply character replacements
-        String transformed = value;
-        for (Map.Entry<String, String> replacement : replacements.entrySet()) {
-            transformed = transformed.replace(replacement.getKey(), replacement.getValue());
-        }
-        
-        // Apply filter pattern if provided
-        if (filterPattern != null) {
-            transformed = transformed.replaceAll(filterPattern, "");
-            
-            // Return default if empty
-            if (transformed.isEmpty() && defaultValue != null) {
-                return defaultValue;
-            }
-        }
-        
-        return transformed;
     }
 }
