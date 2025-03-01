@@ -17,7 +17,6 @@ public class LogbookValidationService {
 
     @Autowired
     public void init() {
-
         this.headerMap = new HashMap<>();
         headerMap.put("single- engine land", "SINGLE-ENGINE LAND");
         headerMap.put("multi- engine land", "MULTI-ENGINE LAND");
@@ -37,7 +36,12 @@ public class LogbookValidationService {
         final TableRow finalHeaderRow = headerRow;
         final List<TableRow> dataRows = scannedRows.stream()
                 .filter(row -> !row.equals(finalHeaderRow))
-                .map(row -> new TableRow(row.getRowIndex(), row.getColumnData(), false, new HashMap<>()))
+                .map(row -> new TableRow(
+                        row.getRowIndex(),
+                        row.getColumnData(),
+                        false,
+                        row.getParentHeaders() != null ? new HashMap<>(row.getParentHeaders()) : new HashMap<>()
+                ))
                 .toList();
 
         if (headerRow != null) {
@@ -48,7 +52,11 @@ public class LogbookValidationService {
                 consolidatedHeaders.put(column, canonicalHeader);
             });
 
-            headerRow = new TableRow(0, consolidatedHeaders, true, new HashMap<>());
+            // Preserve parent headers instead of creating an empty map
+            Map<Integer, String> parentHeaders = headerRow.getParentHeaders() != null ?
+                    new HashMap<>(headerRow.getParentHeaders()) : new HashMap<>();
+
+            headerRow = new TableRow(0, consolidatedHeaders, true, parentHeaders);
         }
 
         List<TableRow> result = new ArrayList<>();
@@ -56,6 +64,9 @@ public class LogbookValidationService {
             result.add(headerRow);
         }
         result.addAll(dataRows);
+
+        log.info("After validation: {} rows", result.size());
+        log.info("Validated rows: {}", result);
 
         return result;
     }
