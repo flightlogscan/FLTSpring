@@ -147,26 +147,37 @@ public class TableProcessorService {
         log.info("Final consolidated headers: {}", consolidatedHeaders);
         log.info("Header hierarchy: {}", headerHierarchy);
 
+        // Build a map from child header to parent header for easier lookup
+        Map<String, String> childToParentMap = new HashMap<>();
+        for (Map.Entry<String, Set<String>> entry : headerHierarchy.entrySet()) {
+            String parentHeader = entry.getKey();
+            for (String childHeader : entry.getValue()) {
+                childToParentMap.put(childHeader, parentHeader);
+            }
+        }
+
         // Create a comprehensive parent headers map for each column
         Map<Integer, String> finalParentHeadersMap = new HashMap<>();
+
+        // Process every column and set its parent header
         for (Map.Entry<Integer, String> entry : consolidatedHeaders.entrySet()) {
             int colIdx = entry.getKey();
             String header = entry.getValue();
 
-            // Find if this header has a parent
-            for (Map.Entry<String, Set<String>> hierarchyEntry : headerHierarchy.entrySet()) {
-                if (hierarchyEntry.getValue().contains(header)) {
-                    finalParentHeadersMap.put(colIdx, hierarchyEntry.getKey());
-                    log.info("Column {} with header '{}' has parent '{}'", colIdx, header, hierarchyEntry.getKey());
-                    break;
-                }
+            // If this header is a child in the hierarchy, use its parent
+            if (childToParentMap.containsKey(header)) {
+                finalParentHeadersMap.put(colIdx, childToParentMap.get(header));
+                log.info("Column {} with header '{}' has parent '{}'", colIdx, header, childToParentMap.get(header));
             }
-
-            // If no match in hierarchy, check direct parent mapping
-            if (!finalParentHeadersMap.containsKey(colIdx) && columnToParentHeader.containsKey(colIdx)) {
+            // Otherwise check if we have a direct parent mapping
+            else if (columnToParentHeader.containsKey(colIdx)) {
                 finalParentHeadersMap.put(colIdx, columnToParentHeader.get(colIdx));
+                log.info("Column {} with header '{}' has direct parent '{}'", colIdx, header, columnToParentHeader.get(colIdx));
             }
         }
+
+        // Handle cases where parent header is repeated instead of child header
+        processAdjacentColumns(consolidatedHeaders, finalParentHeadersMap, childToParentMap);
 
         if (!consolidatedHeaders.isEmpty()) {
             // Add headers row with its parent headers
@@ -198,12 +209,103 @@ public class TableProcessorService {
         return allTableRows;
     }
 
+    /**
+     * Process adjacent columns to handle cases where a parent header appears as a column header
+     * instead of the expected child header
+     */
+    private void processAdjacentColumns(Map<Integer, String> headers, Map<Integer, String> parentHeaders,
+                                        Map<String, String> childToParentMap) {
+        // First, we'll process all adjacent columns to find patterns
+        List<Integer> columnIndices = new ArrayList<>(headers.keySet());
+        Collections.sort(columnIndices);
+
+        // Iterate through all adjacent column pairs
+        for (int i = 0; i < columnIndices.size() - 1; i++) {
+            int currentCol = columnIndices.get(i);
+            int nextCol = columnIndices.get(i + 1);
+
+            // Only process if they're actually adjacent
+            if (nextCol == currentCol + 1) {
+                String currentHeader = headers.get(currentCol);
+                String nextHeader = headers.get(nextCol);
+                String currentParent = parentHeaders.get(currentCol);
+                String nextParent = parentHeaders.get(nextCol);
+
+                // Case 1: Current header is a specific value, next header is the parent
+                // This is our main issue - e.g., "SINGLE-ENGINE LAND" followed by "AIRCRAFT CATEGORY"
+                if (currentParent != null && nextHeader != null && nextHeader.equals(currentParent)) {
+                    headers.put(nextCol, currentHeader);
+                    log.info("Fixed: Changed column {} header from '{}' to '{}' based on adjacent column pattern",
+                            nextCol, nextHeader, currentHeader);
+                }
+
+                // Case 2: Current header is a parent, next header is a child of that parent
+                if (currentHeader != null && nextHeader != null && currentHeader.equals(nextParent)) {
+                    headers.put(currentCol, nextHeader);
+                    log.info("Fixed: Changed column {} header from '{}' to '{}' based on parent-child relationship",
+                            currentCol, currentHeader, nextHeader);
+                }
+
+                // Case 3: Headers are the same but parents are different - should be consistent
+                if (currentHeader != null && nextHeader != null &&
+                        currentHeader.equals(nextHeader) &&
+                        currentParent != null && nextParent != null &&
+                        !currentParent.equals(nextParent)) {
+                    // Use the more specific parent for both
+                    parentHeaders.put(nextCol, currentParent);
+                    log.info("Fixed: Changed column {} parent from '{}' to '{}' to maintain consistency",
+                            nextCol, nextParent, currentParent);
+                }
+            }
+        }
+
+        // Group columns by parent header
+        Map<String, List<Integer>> columnsByParent = new HashMap<>();
+        for (Map.Entry<Integer, String> entry : parentHeaders.entrySet()) {
+            int colIdx = entry.getKey();
+            String parentHeader = entry.getValue();
+            columnsByParent.computeIfAbsent(parentHeader, k -> new ArrayList<>()).add(colIdx);
+        }
+
+        // For each parent header, ensure all columns with that parent use the same header
+        // if they appear in sequence
+        for (Map.Entry<String, List<Integer>> entry : columnsByParent.entrySet()) {
+            String parentHeader = entry.getKey();
+            List<Integer> columns = entry.getValue();
+            Collections.sort(columns);
+
+            // Process consecutive columns with the same parent
+            for (int i = 0; i < columns.size() - 1; i++) {
+                int currentCol = columns.get(i);
+                int nextCol = columns.get(i + 1);
+
+                // If columns are adjacent
+                if (nextCol == currentCol + 1) {
+                    String currentHeader = headers.get(currentCol);
+                    String nextHeader = headers.get(nextCol);
+
+                    // If one header is the parent itself and the other isn't
+                    if (currentHeader.equals(parentHeader) && !nextHeader.equals(parentHeader)) {
+                        headers.put(currentCol, nextHeader);
+                        log.info("Fixed: Changed column {} header from '{}' to '{}' for consistency",
+                                currentCol, currentHeader, nextHeader);
+                    } else if (!currentHeader.equals(parentHeader) && nextHeader.equals(parentHeader)) {
+                        headers.put(nextCol, currentHeader);
+                        log.info("Fixed: Changed column {} header from '{}' to '{}' for consistency",
+                                nextCol, nextHeader, currentHeader);
+                    }
+                }
+            }
+        }
+    }
+
     private String cleanContent(String content) {
         if (content == null) return null;
         return content.replaceAll("\\r?\\n", " ")
                 .replaceAll("\\s+", " ")
                 .trim();
     }
+
     private boolean shouldSkipTable(TableStructure table, List<TableStructure> allTables) {
         if (allTables.size() <= 2) {
             return false;
