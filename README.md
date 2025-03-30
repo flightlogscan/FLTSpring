@@ -15,7 +15,7 @@
 1. On server, run deployment script
    * `sudo /opt/flightlogscan/bin/deploy.sh`
 1. Test change locally
-   * Make api call to `https://api.flightlogtracer.com/api/{api}` e.g. `https://api.flightlogtracer.com/api/ping`
+   * Make api call to `https://api.flightlogscan.com/api/{api}` e.g. `https://api.flightlogscan.com/api/ping`
 
 ### Server Logs
 1. On server go into the docker container: `sudo docker exec -it /flightlogscan /bin/bash`

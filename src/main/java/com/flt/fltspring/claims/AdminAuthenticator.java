@@ -18,7 +18,7 @@ public class AdminAuthenticator {
         
         // Add default admins
         emails.add("flightlogtracer@gmail.com");
-        emails.add("flightlogtracer@flightlogtracer.com");
+        emails.add("flightlogscan@flightlogscan.com");
         
         // Add any configured admins from properties
         if (configuredAdmins != null && !configuredAdmins.isEmpty()) {
