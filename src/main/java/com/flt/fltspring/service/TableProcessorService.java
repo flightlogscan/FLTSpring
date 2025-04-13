@@ -27,7 +27,7 @@ public class TableProcessorService {
             "TOTALS",
             "AMT. FORWARDED"
     );
-
+    
     public List<TableRow> processTables(List<TableStructure> tableStructures) {
         final List<TableRow> allTableRows = new ArrayList<>();
         Map<Integer, String> consolidatedHeaders = new HashMap<>();
@@ -39,9 +39,11 @@ public class TableProcessorService {
         Map<Integer, String> columnToParentHeader = new HashMap<>(); // Maps column index to its parent header
 
         int columnOffset = 0;
-
+        
         for (TableStructure table : tableStructures) {
+            log.info("Processing table from page {}", table.getPageNumber());
             if (shouldSkipTable(table, tableStructures)) {
+                log.info("Skipping table from page {}", table.getPageNumber());
                 continue;
             }
 

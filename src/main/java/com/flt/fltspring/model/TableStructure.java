@@ -14,4 +14,9 @@ import java.util.List;
 public class TableStructure {
     private final int columnCount;
     private final List<TableCell> cells;
+    private final int pageNumber;
+    
+    public TableStructure(int columnCount, List<TableCell> cells) {
+        this(columnCount, cells, 0); // Default to page 0 for backward compatibility
+    }
 }
