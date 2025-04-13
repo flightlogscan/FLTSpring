@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 public class SecretsConfig {
     private static final String DEFAULT_ENVIRONMENT = "prod";
     
-    @Value("${infisical.project-id:34457db8-92b6-4785-af7d-aff07b776299}")
+    @Value("${infisical.project-id:13c16c80-a03a-44c3-8bca-92ae4e5efc47}")
     private String projectId;
     
     @Value("${infisical.environment:prod}")
