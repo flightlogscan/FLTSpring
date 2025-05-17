@@ -79,7 +79,9 @@ public class ImageAnalyzerRestController {
             if (log.isDebugEnabled()) {
                 log.debug("Final response structure: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
             }
-            
+
+            log.info("Final response structure: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
+
             return ResponseEntity.ok(response);
 
         } catch (IllegalArgumentException e) {
