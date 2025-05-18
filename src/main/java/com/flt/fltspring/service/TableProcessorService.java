@@ -14,7 +14,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,9 +27,17 @@ public class TableProcessorService {
     private static final List<String> UNWANTED_STRINGS = List.of(
             "I certify that",
             "TOTALS",
+            "AMT. FORWARDED",
+            "LOGBOOK ENTRIES TYPE OF PILOT EXPERIENCE OR"
+    );
+
+    // Table-level unwanted strings (excluding logbook‐entries phrase)
+    private static final List<String> UNWANTED_TABLE_STRINGS = List.of(
+            "I certify that",
+            "TOTALS",
             "AMT. FORWARDED"
     );
-    
+
     public List<TableRow> processTables(List<TableStructure> tableStructures) {
         final List<TableRow> allTableRows = new ArrayList<>();
         Map<Integer, String> consolidatedHeaders = new HashMap<>();
@@ -39,7 +49,23 @@ public class TableProcessorService {
         Map<Integer, String> columnToParentHeader = new HashMap<>(); // Maps column index to its parent header
 
         int columnOffset = 0;
-        
+
+        // Reorder tables: process the table with the "DATE" header first for correct header ordering
+        List<TableStructure> anchorTables = new ArrayList<>();
+        List<TableStructure> otherTables = new ArrayList<>();
+        for (TableStructure t : tableStructures) {
+            boolean hasDate = t.getCells().stream()
+                .map(TableCell::getContent)
+                .map(this::cleanContent)
+                .anyMatch(c -> "DATE".equalsIgnoreCase(c));
+            if (hasDate) anchorTables.add(t);
+            else otherTables.add(t);
+        }
+        List<TableStructure> sortedTables = new ArrayList<>();
+        sortedTables.addAll(anchorTables);
+        sortedTables.addAll(otherTables);
+        tableStructures = sortedTables;
+
         for (TableStructure table : tableStructures) {
             log.info("Processing table from page {}", table.getPageNumber());
             if (shouldSkipTable(table, tableStructures)) {
@@ -54,90 +80,102 @@ public class TableProcessorService {
             List<Integer> rowIndices = new ArrayList<>(rowGroups.keySet());
             Collections.sort(rowIndices);
 
-            if (!rowIndices.isEmpty()) {
-                // First, collect all row 0 headers (potential parent headers)
-                Map<Integer, TableCell> row0HeaderCells = new HashMap<>();
-                if (rowGroups.containsKey(0)) {
-                    for (TableCell cell : rowGroups.get(0)) {
+            // Determine where data rows start (row containing date-like content)
+            int firstDataRowIndex = rowGroups.keySet().stream()
+                .filter(idx -> rowGroups.get(idx).stream()
+                    .anyMatch(cell -> cell.getContent() != null
+                        && cell.getContent().matches("\\d{1,2}/\\d{1,2}")))
+                .findFirst()
+                .orElse(2);
+            log.info("Detected firstDataRowIndex for table on page {}: {}", table.getPageNumber(), firstDataRowIndex);
+
+            // Anchor-based header detection: start at the row containing "DATE"
+            List<Integer> possibleHeaderRows = rowIndices.stream()
+                .filter(idx -> idx < firstDataRowIndex)
+                .filter(idx -> rowGroups.getOrDefault(idx, Collections.emptyList()).stream()
+                    .map(TableCell::getContent)
+                    .map(this::cleanContent)
+                    .noneMatch(c -> UNWANTED_STRINGS.stream()
+                        .anyMatch(unwanted ->
+                            c.equalsIgnoreCase(unwanted) ||
+                            c.toLowerCase().contains(unwanted.toLowerCase())
+                        )
+                    )
+                )
+                .collect(Collectors.toList());
+
+            Optional<Integer> anchorHeaderIdxOpt = possibleHeaderRows.stream()
+                .filter(idx -> rowGroups.getOrDefault(idx, Collections.emptyList()).stream()
+                    .map(TableCell::getContent)
+                    .map(this::cleanContent)
+                    .anyMatch(c -> "DATE".equalsIgnoreCase(c)))
+                .findFirst();
+
+            List<Integer> headerRowIndices;
+            if (anchorHeaderIdxOpt.isPresent()) {
+                int anchorIdx = anchorHeaderIdxOpt.get();
+                headerRowIndices = possibleHeaderRows.stream()
+                    .filter(idx -> idx <= anchorIdx)
+                    .sorted()
+                    .collect(Collectors.toList());
+            } else {
+                // Fallback to all rows above data if no anchor found
+                headerRowIndices = possibleHeaderRows;
+            }
+
+            if (!headerRowIndices.isEmpty()) {
+                int topHeaderRowIdx = headerRowIndices.get(0);
+                for (int headerRowIdx : headerRowIndices) {
+                    for (TableCell cell : rowGroups.getOrDefault(headerRowIdx, Collections.emptyList())) {
                         if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
                             int startIdx = cell.getColumnIndex() + columnOffset;
-                            row0HeaderCells.put(startIdx, cell);
-                            String headerContent = cleanContent(cell.getContent());
+                            String headerText = cleanContent(cell.getContent());
 
-                            // Initialize the set of child headers for this parent
-                            headerHierarchy.putIfAbsent(headerContent, new HashSet<>());
-
-                            // For headers that span multiple columns, mark all those columns
-                            for (int i = 0; i < cell.getColumnSpan(); i++) {
-                                int colIdx = startIdx + i;
-                                columnToParentHeader.put(colIdx, headerContent);
-                                log.info("Column {} has parent header: {}", colIdx, headerContent);
-                            }
-                        }
-                    }
-                }
-
-                // Then, process row 1 headers and associate them with their parent headers
-                Map<Integer, String> row1Headers = new HashMap<>();
-                if (rowGroups.containsKey(1)) {
-                    for (TableCell cell : rowGroups.get(1)) {
-                        if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
-                            int startIdx = cell.getColumnIndex() + columnOffset;
-                            String childHeader = cleanContent(cell.getContent());
-                            row1Headers.put(startIdx, childHeader);
-
-                            // Find the parent header for this column
-                            String parentHeader = columnToParentHeader.get(startIdx);
-                            if (parentHeader != null) {
-                                // Associate this child header with its parent
-                                headerHierarchy.get(parentHeader).add(childHeader);
-                                log.info("Child header '{}' is under parent header '{}'", childHeader, parentHeader);
-                            }
-
-                            // For spanning headers, mark all spanned columns
-                            for (int i = 0; i < cell.getColumnSpan(); i++) {
-                                int colIdx = startIdx + i;
-                                consolidatedHeaders.put(colIdx, childHeader);
-                            }
-                        }
-                    }
-                }
-
-                // Process data rows to collect all used column indices
-                for (int rowIndex : rowIndices) {
-                    if (rowIndex > 1) {
-                        List<TableCell> cells = rowGroups.get(rowIndex).stream()
-                                .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
-                                .collect(Collectors.toList());
-
-                        if (!shouldSkipRow(cells)) {
-                            Map<Integer, String> rowData = dataRowsByIndex.computeIfAbsent(rowIndex, k -> new HashMap<>());
-
-                            for (TableCell cell : cells) {
-                                if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
-                                    int globalIndex = cell.getColumnIndex() + columnOffset;
-                                    String content = cleanContent(cell.getContent());
-                                    rowData.put(globalIndex, content);
-                                    allDataColumns.add(globalIndex);  // Track this column index
-                                    log.info("Data from row {} at index {}: {}", rowIndex, globalIndex, content);
+                            // Top header row defines parent headers
+                            if (headerRowIdx == topHeaderRowIdx) {
+                                headerHierarchy.putIfAbsent(headerText, new HashSet<>());
+                                for (int i = 0; i < cell.getColumnSpan(); i++) {
+                                    columnToParentHeader.put(startIdx + i, headerText);
+                                }
+                            } else {
+                                // Subsequent header rows define child headers under existing parents
+                                for (int i = 0; i < cell.getColumnSpan(); i++) {
+                                    int colIdx = startIdx + i;
+                                    String parent = columnToParentHeader.get(colIdx);
+                                    if (parent != null) {
+                                        headerHierarchy.get(parent).add(headerText);
+                                    }
                                 }
                             }
+
+                            // Consolidate the header (deepest header wins)
+                            for (int i = 0; i < cell.getColumnSpan(); i++) {
+                                consolidatedHeaders.put(startIdx + i, headerText);
+                            }
                         }
                     }
                 }
+            }
 
-                // Apply row 0 headers to consolidated headers where row 1 headers don't exist
-                for (Map.Entry<Integer, TableCell> entry : row0HeaderCells.entrySet()) {
-                    int startIndex = entry.getKey();
-                    TableCell cell = entry.getValue();
-                    String header = cleanContent(cell.getContent());
+            // Process data rows to collect all used column indices (grouping by relative data row)
+            for (int rowIndex : rowIndices) {
+                if (rowIndex >= firstDataRowIndex) {
+                    List<TableCell> cells = rowGroups.getOrDefault(rowIndex, Collections.emptyList()).stream()
+                            .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
+                            .collect(Collectors.toList());
 
-                    for (int i = 0; i < cell.getColumnSpan(); i++) {
-                        int colIdx = startIndex + i;
-                        // Only set if row 1 doesn't already have a header for this column
-                        if (!row1Headers.containsKey(colIdx)) {
-                            consolidatedHeaders.put(colIdx, header);
-                            log.info("Row 0 header applied to column {}: {}", colIdx, header);
+                    if (!shouldSkipRow(cells)) {
+                        int groupIndex = rowIndex - firstDataRowIndex;
+                        Map<Integer, String> rowData = dataRowsByIndex.computeIfAbsent(groupIndex, k -> new HashMap<>());
+
+                        for (TableCell cell : cells) {
+                            if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+                                int globalIndex = cell.getColumnIndex() + columnOffset;
+                                String content = cleanContent(cell.getContent());
+                                rowData.put(globalIndex, content);
+                                allDataColumns.add(globalIndex);
+                                log.info("Data from row {} (group {}) at index {}: {}", rowIndex, groupIndex, globalIndex, content);
+                            }
                         }
                     }
                 }
@@ -194,8 +232,21 @@ public class TableProcessorService {
         processAdjacentColumns(consolidatedHeaders, finalParentHeadersMap, childToParentMap);
 
         if (!consolidatedHeaders.isEmpty()) {
-            // Add headers row with its parent headers
-            allTableRows.add(new TableRow(0, new HashMap<>(consolidatedHeaders), true, new HashMap<>(finalParentHeadersMap)));
+            // Order headers by column index to preserve natural table order
+            Map<Integer, String> orderedHeaders = new LinkedHashMap<>();
+            consolidatedHeaders.keySet().stream().sorted()
+                .forEach(colIdx -> orderedHeaders.put(colIdx, consolidatedHeaders.get(colIdx)));
+
+            // Order parent headers to match the ordered columns
+            Map<Integer, String> orderedParentHeaders = new LinkedHashMap<>();
+            orderedHeaders.keySet().forEach(colIdx -> {
+                if (finalParentHeadersMap.containsKey(colIdx)) {
+                    orderedParentHeaders.put(colIdx, finalParentHeadersMap.get(colIdx));
+                }
+            });
+
+            log.info("Ordered header sequence: {}", orderedHeaders);
+            allTableRows.add(new TableRow(0, orderedHeaders, true, orderedParentHeaders));
         }
 
         // Add each data row while preserving row order
@@ -265,7 +316,7 @@ public class TableProcessorService {
         return table.getCells().stream()
                 .map(TableCell::getContent)
                 .anyMatch(content ->
-                        content != null && UNWANTED_STRINGS.stream()
+                        content != null && UNWANTED_TABLE_STRINGS.stream()
                                 .anyMatch(unwanted ->
                                         content.toLowerCase().contains(unwanted.toLowerCase())));
     }
