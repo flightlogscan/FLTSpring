@@ -43,6 +43,17 @@ public class ImageAnalyzerRestController {
     private final RowProcessorService rowProcessorService;
     private final TableProcessorService tableProcessorService;
 
+    /**
+     * Takes an image of a flight log and return the text as structured data.
+     *
+     * Local call:
+     * curl --data-binary @"/your/image/path" \
+     * -H "Authorization: Bearer {INSERT_BEARER_TOKEN_HERE}" \
+     * -X POST localhost:8080/api/analyze > response.txt
+     *
+     * @param request HttpServlet request
+     * @return
+     */
     @PostMapping(path = "/analyze", consumes = MediaType.ALL_VALUE)
     public ResponseEntity<AnalyzeImageResponse> submitAnalyzeImage(final HttpServletRequest request) {
         try {

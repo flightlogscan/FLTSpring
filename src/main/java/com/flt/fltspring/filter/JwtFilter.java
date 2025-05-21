@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -22,11 +23,12 @@ import java.util.UUID;
 @Slf4j
 public class JwtFilter implements Filter {
     private static final String REQUEST_ID = "requestId";
-    private static final String FIREBASE_EMAIL_ATTR = "firebaseEmail";
+    public static final String FIREBASE_EMAIL_ATTR = "firebaseEmail";
+    public static final String FIREBASE_UID = "firebaseUid";
     private static final String BEARER_PREFIX = "Bearer ";
     
     // Endpoints that don't require authentication
-    private static final Set<String> PUBLIC_ENDPOINTS = new HashSet<>(Arrays.asList(
+    private static final Set<String> PUBLIC_ENDPOINTS = new HashSet<>(List.of(
             "/api/ping"
     ));
     
@@ -51,7 +53,7 @@ public class JwtFilter implements Filter {
 
             final String authHeader = request.getHeader("Authorization");
             if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
-                log.warn("Missing or invalid Authorization header for request: {}", requestId);
+                log.error("Missing or invalid Authorization header for request: {}", requestId);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
                 return;
             }
@@ -65,13 +67,14 @@ public class JwtFilter implements Filter {
                 final String email = decodedToken.getEmail();
 
                 // Add user information to request for use in controllers
+                request.setAttribute(FIREBASE_UID, uid);
                 request.setAttribute(FIREBASE_EMAIL_ATTR, email);
 
                 // Log authentication info with redacted token
                 log.info("Authenticated user uid: {}, Request ID: {}", uid, requestId);
-                log.debug("Authentication details - Email: {}, Request ID: {}", email, requestId);
+                log.info("Authentication details - Email: {}, Request ID: {}", email, requestId);
             } catch (FirebaseAuthException e) {
-                log.warn("Firebase authentication failed: {}, Request ID: {}", e.getMessage(), requestId);
+                log.error("Firebase authentication failed: {}, Request ID: {}", e.getMessage(), requestId);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid authentication token");
                 return;
             }
