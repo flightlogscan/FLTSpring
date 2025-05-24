@@ -7,21 +7,22 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Configuration for character replacements used in various transformations.
- * This centralizes all the character replacement mappings.
+ * Centralized OCR character-replacement mappings.
+ * Supports numeric, airport-code, and generic string replacements.
  */
 @Component
 public class CharacterReplacementConfig {
-    
+
     // Characters commonly misidentified as numbers
     private final Map<String, String> numericReplacements = new HashMap<>();
-    
-    // Characters commonly misidentified as letters
+    // Characters commonly misidentified as letters in airport codes
     private final Map<String, String> airportCodeReplacements = new HashMap<>();
-    
+    // Generic string replacements (e.g. strip or correct common OCR artifacts in text)
+    private final Map<String, String> stringReplacements = new HashMap<>();
+
     @PostConstruct
     public void initialize() {
-        // Initialize numeric replacements
+        // Numeric replacements
         numericReplacements.put("O", "0");
         numericReplacements.put("o", "0");
         numericReplacements.put("l", "1");
@@ -38,13 +39,11 @@ public class CharacterReplacementConfig {
         numericReplacements.put("G", "6");
         numericReplacements.put("g", "9");
         numericReplacements.put("q", "9");
-        // Common OCR errors with special characters
-        numericReplacements.put(".", "");  // Sometimes periods appear in numbers
-        numericReplacements.put(" ", "");  // Remove spaces in numbers
-        numericReplacements.put(",", "");  // Remove commas that might appear in larger numbers
-        numericReplacements.put("-", "");  // Remove hyphens that might break up numbers
-        
-        // Initialize airport code replacements
+        numericReplacements.put(" ", "");   // Remove spaces in numbers
+        numericReplacements.put(",", "");   // Remove commas
+        numericReplacements.put("-", "");   // Remove hyphens
+
+        // Airport-code replacements
         airportCodeReplacements.put("0", "O");
         airportCodeReplacements.put("1", "I");
         airportCodeReplacements.put("2", "Z");
@@ -52,16 +51,36 @@ public class CharacterReplacementConfig {
         airportCodeReplacements.put("8", "B");
         airportCodeReplacements.put("6", "G");
         airportCodeReplacements.put("9", "G");
-        airportCodeReplacements.put(" ", "");  // Remove spaces in airport codes
-        airportCodeReplacements.put("-", "");  // Remove hyphens
-        airportCodeReplacements.put(".", "");  // Remove periods
+        airportCodeReplacements.put(" ", "");   // Remove spaces in codes
+        airportCodeReplacements.put("-", "");
+        airportCodeReplacements.put(".", "");
+
+        // Generic string replacements: same as airport codes but keep spaces
+        stringReplacements.putAll(airportCodeReplacements);
+        stringReplacements.remove(" ");         // Allow spaces in headers/text
+
+        // Additionally strip digits in free text
+        stringReplacements.put("0", "");
+        stringReplacements.put("1", "");
+        stringReplacements.put("2", "");
+        stringReplacements.put("3", "");
+        stringReplacements.put("4", "");
+        stringReplacements.put("5", "");
+        stringReplacements.put("6", "");
+        stringReplacements.put("7", "");
+        stringReplacements.put("8", "");
+        stringReplacements.put("9", "");
     }
-    
+
     public Map<String, String> getNumericReplacements() {
         return numericReplacements;
     }
-    
+
     public Map<String, String> getAirportCodeReplacements() {
         return airportCodeReplacements;
+    }
+
+    public Map<String, String> getStringReplacements() {
+        return stringReplacements;
     }
 }

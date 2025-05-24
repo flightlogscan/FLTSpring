@@ -17,6 +17,6 @@ public class TableStructure {
     private final int pageNumber;
     
     public TableStructure(int columnCount, List<TableCell> cells) {
-        this(columnCount, cells, 0); // Default to page 0 for backward compatibility
+        this(columnCount, cells, 0);
     }
 }
