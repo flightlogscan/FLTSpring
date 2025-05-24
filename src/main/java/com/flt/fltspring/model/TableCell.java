@@ -5,6 +5,6 @@ public interface TableCell {
     int getColumnIndex();
     String getContent();
     default int getColumnSpan() {
-        return 1; // Default implementation returns 1 (no span)
+        return 1;
     }
 }

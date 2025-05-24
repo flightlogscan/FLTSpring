@@ -17,6 +17,7 @@ public class RowConversionService {
     private final TableDataTransformerService transformer;
 
     public TableResponseDTO convert(List<TableRow> rows) {
+        // TODO: Do this transform directly in the controller so that this is purely a conversion class
         List<TableRow> transformed = transformer.transformData(rows);
         List<TableRow> validated = validationService.validateAndCorrect(transformed);
 

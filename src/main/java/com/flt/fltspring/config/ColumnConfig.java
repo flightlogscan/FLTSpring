@@ -10,12 +10,4 @@ import lombok.NoArgsConstructor;
 public class ColumnConfig {
     private String fieldName;
     private String type;
-
-    public boolean isIntegerType() {
-        return "INTEGER".equals(type);
-    }
-
-    public boolean isAirportCodeType() {
-        return "AIRPORT_CODE".equals(type);
-    }
 }
