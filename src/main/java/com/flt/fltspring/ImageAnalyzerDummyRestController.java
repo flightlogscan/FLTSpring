@@ -7,7 +7,7 @@ import com.flt.fltspring.model.TableResponseDTO;
 import com.flt.fltspring.model.TableRow;
 import com.flt.fltspring.model.TableStructure;
 import com.flt.fltspring.model.dummy.DummyAnalyzeResult;
-import com.flt.fltspring.service.RowProcessorService;
+import com.flt.fltspring.service.RowConversionService;
 import com.flt.fltspring.service.TableProcessorService;
 import com.flt.fltspring.service.dummy.DummyResultConverterService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,7 +30,7 @@ import java.util.List;
 public class ImageAnalyzerDummyRestController {
     private final ObjectMapper objectMapper;
     private final DummyResultConverterService dummyResultConverterService;
-    private final RowProcessorService rowProcessorService;
+    private final RowConversionService rowConversionService;
     private final TableProcessorService tableProcessorService;
     private final AdminAuthenticator adminAuthenticator;
 
@@ -58,7 +58,7 @@ public class ImageAnalyzerDummyRestController {
 
             final List<TableStructure> tables = dummyResultConverterService.convertToTable(dummyResult);
             final List<TableRow> tableRows = tableProcessorService.processTables(tables);
-            final TableResponseDTO tableResponse = rowProcessorService.processTableRows(tableRows);
+            final TableResponseDTO tableResponse = rowConversionService.convert(tableRows);
 
             final AnalyzeImageResponse response = AnalyzeImageResponse.builder()
                     .status("SUCCESS")

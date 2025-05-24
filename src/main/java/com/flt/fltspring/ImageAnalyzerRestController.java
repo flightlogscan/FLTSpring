@@ -10,7 +10,7 @@ import com.flt.fltspring.model.TableResponseDTO;
 import com.flt.fltspring.model.TableRow;
 import com.flt.fltspring.model.TableStructure;
 import com.flt.fltspring.service.ResultConverterService;
-import com.flt.fltspring.service.RowProcessorService;
+import com.flt.fltspring.service.RowConversionService;
 import com.flt.fltspring.service.TableProcessorService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +40,7 @@ public class ImageAnalyzerRestController {
     private final ObjectMapper objectMapper;
     private final ResultConverterService resultConverterService;
     private final DocumentIntelligenceDao documentIntelligenceDao;
-    private final RowProcessorService rowProcessorService;
+    private final RowConversionService rowConversionService;
     private final TableProcessorService tableProcessorService;
 
     /**
@@ -81,7 +81,9 @@ public class ImageAnalyzerRestController {
             }
             
             final List<TableRow> tableRows = tableProcessorService.processTables(tables);
-            final TableResponseDTO tableResponse = rowProcessorService.processTableRows(tableRows);
+
+            // Convert processed table rows to our response object
+            final TableResponseDTO tableResponse = rowConversionService.convert(tableRows);
 
             final AnalyzeImageResponse response = AnalyzeImageResponse.builder()
                     .status(SUCCESS_STATUS)
