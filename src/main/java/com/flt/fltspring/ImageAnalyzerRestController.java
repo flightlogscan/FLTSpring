@@ -72,8 +72,9 @@ public class ImageAnalyzerRestController {
             // Process document through Azure
             final AnalyzeResult analyzeResult = documentIntelligenceDao.analyzeDocumentSync(documentData);
             
-            // Process results
+            // Convert Azure structures to our own
             final List<TableStructure> tables = resultConverterService.convertToTable(analyzeResult);
+
             if (tables.isEmpty()) {
                 log.warn("No tables detected in the document");
                 return buildErrorResponse("No tables detected in the document", HttpStatus.BAD_REQUEST);
