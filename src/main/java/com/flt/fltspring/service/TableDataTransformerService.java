@@ -47,7 +47,7 @@ public class TableDataTransformerService {
         Map<Integer, String> transformed = row.getColumnData().entrySet().stream()
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
-                        e -> applyReplacements(e.getValue(), types.get(e.getKey()), isHeader)
+                        e -> applyReplacements(e.getValue(), types.getOrDefault(e.getKey(), "STRING"), isHeader)
                 ));
 
         return TableRow.builder()
