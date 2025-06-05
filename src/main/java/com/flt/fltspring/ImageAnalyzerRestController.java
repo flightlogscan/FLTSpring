@@ -6,7 +6,6 @@ import com.azure.core.util.BinaryData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.dao.DocumentIntelligenceDao;
 import com.flt.fltspring.model.AnalyzeImageResponse;
-import com.flt.fltspring.model.TableResponseDTO;
 import com.flt.fltspring.model.TableRow;
 import com.flt.fltspring.model.TableStructure;
 import com.flt.fltspring.service.ResultConverterService;
@@ -65,9 +64,7 @@ public class ImageAnalyzerRestController {
                 log.warn("File size exceeds limit: {} bytes", fileBytes.length);
                 return buildErrorResponse("File size exceeds maximum limit of 10MB", HttpStatus.PAYLOAD_TOO_LARGE);
             }
-            
             final BinaryData documentData = BinaryData.fromBytes(fileBytes);
-            log.info("Successfully read binary data, length: {}", documentData.getLength());
 
             // Process document through Azure
             final AnalyzeResult analyzeResult = documentIntelligenceDao.analyzeDocumentSync(documentData);
@@ -82,17 +79,7 @@ public class ImageAnalyzerRestController {
             
             final List<TableRow> tableRows = tableProcessorService.processTables(tables);
 
-            // Convert processed table rows to our response object
-            final TableResponseDTO tableResponse = rowConversionService.convert(tableRows);
-
-            final AnalyzeImageResponse response = AnalyzeImageResponse.builder()
-                    .status(SUCCESS_STATUS)
-                    .tables(tableResponse.getRows())
-                    .build();
-
-            if (log.isDebugEnabled()) {
-                log.debug("Final response structure: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
-            }
+            final AnalyzeImageResponse response = rowConversionService.toRowDTO(tableRows);
 
             log.info("Final response structure: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
 

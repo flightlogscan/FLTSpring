@@ -1,7 +1,7 @@
 package com.flt.fltspring.service;
 
+import com.flt.fltspring.model.AnalyzeImageResponse;
 import com.flt.fltspring.model.RowDTO;
-import com.flt.fltspring.model.TableResponseDTO;
 import com.flt.fltspring.model.TableRow;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,12 +12,12 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class RowConversionService {
+    private static final String SUCCESS_STATUS = "SUCCESS";
 
     private final LogbookValidationService validationService;
     private final TableDataTransformerService transformer;
 
-    public TableResponseDTO convert(List<TableRow> rows) {
-        // TODO: Do this transform directly in the controller so that this is purely a conversion class
+    public AnalyzeImageResponse toRowDTO(List<TableRow> rows) {
         List<TableRow> transformed = transformer.transformData(rows);
         List<TableRow> validated = validationService.validateAndCorrect(transformed);
 
@@ -26,19 +26,18 @@ public class RowConversionService {
                 .map(this::toDto)
                 .toList();
 
-        TableResponseDTO response = new TableResponseDTO();
-        response.setRows(dtos);
-        return response;
+        return AnalyzeImageResponse.builder()
+                .status(SUCCESS_STATUS)
+                .tables(dtos)
+                .build();
     }
 
     private RowDTO toDto(TableRow row) {
-        RowDTO dto = new RowDTO();
-        dto.setRowIndex(row.getRowIndex());
-        dto.setContent(row.getColumnData());
-        dto.setHeader(row.isHeader());
-        if (row.getParentHeaders() != null && !row.getParentHeaders().isEmpty()) {
-            dto.setParentHeaders(row.getParentHeaders());
-        }
-        return dto;
+        return new RowDTO(
+            row.getRowIndex(),
+            row.getColumnData(),
+            (row.getParentHeaders() != null && !row.getParentHeaders().isEmpty()) ? row.getParentHeaders() : null,
+            row.isHeader()
+        );
     }
 }

@@ -3,7 +3,6 @@ package com.flt.fltspring;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.claims.AdminAuthenticator;
 import com.flt.fltspring.model.AnalyzeImageResponse;
-import com.flt.fltspring.model.TableResponseDTO;
 import com.flt.fltspring.model.TableRow;
 import com.flt.fltspring.model.TableStructure;
 import com.flt.fltspring.model.dummy.DummyAnalyzeResult;
@@ -58,18 +57,7 @@ public class ImageAnalyzerDummyRestController {
 
             final List<TableStructure> tables = dummyResultConverterService.convertToTable(dummyResult);
             final List<TableRow> tableRows = tableProcessorService.processTables(tables);
-            final TableResponseDTO tableResponse = rowConversionService.convert(tableRows);
-
-            final AnalyzeImageResponse response = AnalyzeImageResponse.builder()
-                    .status("SUCCESS")
-                    .tables(tableResponse.getRows())
-                    .build();
-
-            if (log.isDebugEnabled()) {
-                log.debug("Final dummy response: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
-            } else {
-                log.info("Dummy response processing complete with {} rows", tableResponse.getRows().size());
-            }
+            final AnalyzeImageResponse response = rowConversionService.toRowDTO(tableRows);
 
             return ResponseEntity.ok(response);
 
