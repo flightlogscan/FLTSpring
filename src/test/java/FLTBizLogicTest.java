@@ -63,9 +63,12 @@ class FLTBizLogicTest extends UnitTestBase {
     }
 
     @Test
-    void FLTBizLogicTest_success() throws Exception {
-        try (InputStream analyzeResultStream = getClass().getClassLoader().getResourceAsStream("AnalyzeResultExample.json")) {
+    void FLTBizLogicTest_1row_success() throws Exception {
+        runAnalyzeImageTest("AnalyzeResultOneRowExample.json", expectedAnalyzeImageResponse);
+    }
 
+    private void runAnalyzeImageTest(String inputFile, AnalyzeImageResponse expectedResponse) throws Exception {
+        try (InputStream analyzeResultStream = getClass().getClassLoader().getResourceAsStream(inputFile)) {
             Assertions.assertNotNull(analyzeResultStream);
             String analyzeResultJson = new String(analyzeResultStream.readAllBytes(), StandardCharsets.UTF_8);
             JsonReader jsonReader = JsonProviders.createReader(analyzeResultJson);
@@ -77,10 +80,9 @@ class FLTBizLogicTest extends UnitTestBase {
             final List<TableRow> validated = logbookValidationService.validateAndCorrect(transformed);
             final AnalyzeImageResponse actualResponse = rowConversionService.toRowDTO(validated);
 
-            assertEquals(expectedAnalyzeImageResponse.getStatus(), actualResponse.getStatus(), "Status mismatch");
-            assertEquals(expectedAnalyzeImageResponse.getErrorMessage(), actualResponse.getErrorMessage(), "Error message mismatch");
-
-            assertRowsEqual(expectedAnalyzeImageResponse.getTables(), actualResponse.getTables());
+            assertEquals(expectedResponse.getStatus(), actualResponse.getStatus(), "Status mismatch");
+            assertEquals(expectedResponse.getErrorMessage(), actualResponse.getErrorMessage(), "Error message mismatch");
+            assertRowsEqual(expectedResponse.getTables(), actualResponse.getTables());
         }
     }
 
