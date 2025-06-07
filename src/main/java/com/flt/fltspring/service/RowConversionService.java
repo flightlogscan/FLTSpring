@@ -5,6 +5,7 @@ import com.flt.fltspring.model.service.AnalyzeImageResponse;
 import com.flt.fltspring.model.service.RowDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 import java.util.Objects;
@@ -14,14 +15,8 @@ import java.util.Objects;
 public class RowConversionService {
     private static final String SUCCESS_STATUS = "SUCCESS";
 
-    private final LogbookValidationService validationService;
-    private final TableDataTransformerService transformer;
-
     public AnalyzeImageResponse toRowDTO(List<TableRow> rows) {
-        List<TableRow> transformed = transformer.transformData(rows);
-        List<TableRow> validated = validationService.validateAndCorrect(transformed);
-
-        List<RowDTO> dtos = validated.stream()
+        List<RowDTO> dtos = rows.stream()
                 .filter(Objects::nonNull)
                 .map(this::toDto)
                 .toList();
@@ -36,7 +31,7 @@ public class RowConversionService {
         return new RowDTO(
             row.getRowIndex(),
             row.getColumnData(),
-            (row.getParentHeaders() != null && !row.getParentHeaders().isEmpty()) ? row.getParentHeaders() : null,
+            !CollectionUtils.isEmpty(row.getParentHeaders()) ? row.getParentHeaders() : null,
             row.isHeader()
         );
     }
