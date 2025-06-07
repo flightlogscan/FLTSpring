@@ -1,4 +1,4 @@
-package com.flt.fltspring.model;
+package com.flt.fltspring.model.service;
 
 import lombok.Builder;
 import lombok.Data;

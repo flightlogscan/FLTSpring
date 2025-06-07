@@ -1,4 +1,4 @@
-package com.flt.fltspring.model;
+package com.flt.fltspring.model.bizlogic;
 
 public interface TableCell {
     int getRowIndex();

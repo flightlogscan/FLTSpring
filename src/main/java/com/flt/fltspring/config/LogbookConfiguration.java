@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class LogbookConfiguration {
 
+    // Might need to update for other logbooks
     @Bean
     public ColumnConfig[] columnConfigs() {
         return new ColumnConfig[] {

@@ -39,9 +39,9 @@ public class CharacterReplacementConfig {
         numericReplacements.put("G", "6");
         numericReplacements.put("g", "9");
         numericReplacements.put("q", "9");
-        numericReplacements.put(" ", "");   // Remove spaces in numbers
-        numericReplacements.put(",", "");   // Remove commas
-        numericReplacements.put("-", "");   // Remove hyphens
+        numericReplacements.put(" ", "");
+        numericReplacements.put(",", "");
+        numericReplacements.put("-", "");
 
         // Airport-code replacements
         airportCodeReplacements.put("0", "O");
@@ -51,7 +51,7 @@ public class CharacterReplacementConfig {
         airportCodeReplacements.put("8", "B");
         airportCodeReplacements.put("6", "G");
         airportCodeReplacements.put("9", "G");
-        airportCodeReplacements.put(" ", "");   // Remove spaces in codes
+        airportCodeReplacements.put(" ", "");
         airportCodeReplacements.put("-", "");
         airportCodeReplacements.put(".", "");
 
@@ -59,7 +59,7 @@ public class CharacterReplacementConfig {
         stringReplacements.putAll(airportCodeReplacements);
         stringReplacements.remove(" ");         // Allow spaces in headers/text
 
-        // Additionally strip digits in free text
+        // Additionally strip digits in free text (for headers only?)
         stringReplacements.put("0", "");
         stringReplacements.put("1", "");
         stringReplacements.put("2", "");

@@ -1,6 +1,7 @@
-package com.flt.fltspring.model;
+package com.flt.fltspring.model.dependency;
 
 import com.azure.ai.documentintelligence.models.DocumentTableCell;
+import com.flt.fltspring.model.bizlogic.TableCell;
 
 public class DocumentTableCellAdapter implements TableCell {
     private final DocumentTableCell cell;

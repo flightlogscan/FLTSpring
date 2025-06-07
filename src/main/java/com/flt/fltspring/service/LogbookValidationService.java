@@ -1,6 +1,6 @@
 package com.flt.fltspring.service;
 
-import com.flt.fltspring.model.TableRow;
+import com.flt.fltspring.model.bizlogic.TableRow;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

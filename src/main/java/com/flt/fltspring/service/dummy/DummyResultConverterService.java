@@ -1,6 +1,6 @@
 package com.flt.fltspring.service.dummy;
 
-import com.flt.fltspring.model.TableStructure;
+import com.flt.fltspring.model.bizlogic.TableStructure;
 import com.flt.fltspring.model.dummy.DummyAnalyzeResult;
 import com.flt.fltspring.model.dummy.DummyCellAdapter;
 import lombok.RequiredArgsConstructor;

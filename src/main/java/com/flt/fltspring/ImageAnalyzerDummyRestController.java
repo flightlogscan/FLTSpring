@@ -2,9 +2,9 @@ package com.flt.fltspring;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.claims.AdminAuthenticator;
-import com.flt.fltspring.model.AnalyzeImageResponse;
-import com.flt.fltspring.model.TableRow;
-import com.flt.fltspring.model.TableStructure;
+import com.flt.fltspring.model.service.AnalyzeImageResponse;
+import com.flt.fltspring.model.bizlogic.TableRow;
+import com.flt.fltspring.model.bizlogic.TableStructure;
 import com.flt.fltspring.model.dummy.DummyAnalyzeResult;
 import com.flt.fltspring.service.RowConversionService;
 import com.flt.fltspring.service.TableProcessorService;

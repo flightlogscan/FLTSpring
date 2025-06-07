@@ -5,9 +5,9 @@ import com.azure.core.exception.AzureException;
 import com.azure.core.util.BinaryData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flt.fltspring.dao.DocumentIntelligenceDao;
-import com.flt.fltspring.model.AnalyzeImageResponse;
-import com.flt.fltspring.model.TableRow;
-import com.flt.fltspring.model.TableStructure;
+import com.flt.fltspring.model.service.AnalyzeImageResponse;
+import com.flt.fltspring.model.bizlogic.TableRow;
+import com.flt.fltspring.model.bizlogic.TableStructure;
 import com.flt.fltspring.service.ResultConverterService;
 import com.flt.fltspring.service.RowConversionService;
 import com.flt.fltspring.service.TableProcessorService;
@@ -18,6 +18,7 @@ import org.apache.commons.io.IOUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -72,7 +73,7 @@ public class ImageAnalyzerRestController {
             // Convert Azure structures to our own
             final List<TableStructure> tables = resultConverterService.convertToTable(analyzeResult);
 
-            if (tables.isEmpty()) {
+            if (CollectionUtils.isEmpty(tables)) {
                 log.warn("No tables detected in the document");
                 return buildErrorResponse("No tables detected in the document", HttpStatus.BAD_REQUEST);
             }

@@ -1,8 +1,8 @@
 package com.flt.fltspring.service;
 
-import com.flt.fltspring.model.TableCell;
-import com.flt.fltspring.model.TableRow;
-import com.flt.fltspring.model.TableStructure;
+import com.flt.fltspring.model.bizlogic.TableCell;
+import com.flt.fltspring.model.bizlogic.TableRow;
+import com.flt.fltspring.model.bizlogic.TableStructure;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

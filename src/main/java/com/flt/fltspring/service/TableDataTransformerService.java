@@ -1,7 +1,7 @@
 package com.flt.fltspring.service;
 
 import com.flt.fltspring.config.ColumnConfig;
-import com.flt.fltspring.model.TableRow;
+import com.flt.fltspring.model.bizlogic.TableRow;
 import com.flt.fltspring.service.transform.CharacterReplacementConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,7 +26,7 @@ public class TableDataTransformerService {
         if (rows.isEmpty()) return rows;
 
         // Determine type for each column from header row
-        TableRow headerRow = rows.get(0);
+        TableRow headerRow = rows.getFirst();
         Map<Integer, String> columnTypes = headerRow.getColumnData().entrySet().stream()
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,

@@ -1,4 +1,4 @@
-package com.flt.fltspring.model;
+package com.flt.fltspring.model.bizlogic;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

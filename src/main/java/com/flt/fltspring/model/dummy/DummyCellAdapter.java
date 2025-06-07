@@ -1,6 +1,6 @@
 package com.flt.fltspring.model.dummy;
 
-import com.flt.fltspring.model.TableCell;
+import com.flt.fltspring.model.bizlogic.TableCell;
 
 public class DummyCellAdapter implements TableCell {
     private final DummyCell cell;

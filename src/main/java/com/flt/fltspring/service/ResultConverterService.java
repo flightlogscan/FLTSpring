@@ -2,8 +2,8 @@ package com.flt.fltspring.service;
 
 import com.azure.ai.documentintelligence.models.AnalyzeResult;
 import org.springframework.stereotype.Service;
-import com.flt.fltspring.model.DocumentTableCellAdapter;
-import com.flt.fltspring.model.TableStructure;
+import com.flt.fltspring.model.dependency.DocumentTableCellAdapter;
+import com.flt.fltspring.model.bizlogic.TableStructure;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -16,13 +16,14 @@ public class ResultConverterService {
             return Collections.emptyList();
         }
         return analyzeResult.getTables().stream()
-                .map(table -> new TableStructure(
-                        table.getColumnCount(),
-                        table.getCells().stream()
+                .map(azureTable -> new TableStructure(
+                        azureTable.getColumnCount(),
+                        azureTable.getCells().stream()
                                 .map(DocumentTableCellAdapter::new)
                                 .collect(Collectors.toList()),
-                        table.getBoundingRegions() != null && !table.getBoundingRegions().isEmpty()
-                                ? table.getBoundingRegions().get(0).getPageNumber()
+                        // wthdyjstm??
+                        azureTable.getBoundingRegions() != null && !azureTable.getBoundingRegions().isEmpty()
+                                ? azureTable.getBoundingRegions().getFirst().getPageNumber()
                                 : 0
                 ))
                 .collect(Collectors.toList());
