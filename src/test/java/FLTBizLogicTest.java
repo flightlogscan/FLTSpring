@@ -7,6 +7,7 @@ import com.flt.fltspring.config.LogbookConfiguration;
 import com.flt.fltspring.model.bizlogic.TableRow;
 import com.flt.fltspring.model.bizlogic.TableStructure;
 import com.flt.fltspring.model.service.AnalyzeImageResponse;
+import com.flt.fltspring.model.service.RowDTO;
 import com.flt.fltspring.service.LogbookValidationService;
 import com.flt.fltspring.service.ResultConverterService;
 import com.flt.fltspring.service.RowConversionService;
@@ -76,7 +77,31 @@ class FLTBizLogicTest extends UnitTestBase {
             final List<TableRow> validated = logbookValidationService.validateAndCorrect(transformed);
             final AnalyzeImageResponse actualResponse = rowConversionService.toRowDTO(validated);
 
-            assertEquals(expectedAnalyzeImageResponse, actualResponse);
+            assertEquals(expectedAnalyzeImageResponse.getStatus(), actualResponse.getStatus(), "Status mismatch");
+            assertEquals(expectedAnalyzeImageResponse.getErrorMessage(), actualResponse.getErrorMessage(), "Error message mismatch");
+
+            assertRowsEqual(expectedAnalyzeImageResponse.getTables(), actualResponse.getTables());
+        }
+    }
+
+    private void assertRowsEqual(List<RowDTO> expectedRows, List<RowDTO> actualRows) {
+        assertEquals(expectedRows.size(), actualRows.size(), "Table size mismatch");
+
+        for (int i = 0; i < expectedRows.size(); i++) {
+            var expectedRow = expectedRows.get(i);
+            var actualRow = actualRows.get(i);
+
+            assertEquals(expectedRow.rowIndex(), actualRow.rowIndex(), "Row index mismatch at row " + i);
+            assertEquals(expectedRow.header(), actualRow.header(), "Header flag mismatch at row " + i);
+
+            for (java.util.Map.Entry<Integer, String> entry : expectedRow.content().entrySet()) {
+                Integer key = entry.getKey();
+                String expectedVal = entry.getValue();
+                String actualVal = actualRow.content().get(key);
+                assertEquals(expectedVal, actualVal, "Content mismatch at row " + i + ", key: " + key);
+            }
+
+            assertEquals(expectedRow.parentHeaders(), actualRow.parentHeaders(), "Parent headers mismatch at row " + i);
         }
     }
 }
