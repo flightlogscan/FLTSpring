@@ -38,8 +38,8 @@ public class FltSpringApplication {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
                     .allowedOrigins(
-                        "https://flightlogtracer.com", 
-                        "https://www.flightlogtracer.com"
+                        "https://flightlogscan.com",
+                        "https://www.flightlogscan.com"
                     )
                     .allowedMethods("GET", "POST")
                     .maxAge(3600);
