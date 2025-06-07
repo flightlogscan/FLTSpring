@@ -12,38 +12,82 @@ public class UnitTestBase {
 
     protected final RowDTO headerRow;
     protected final RowDTO dataRow;
-    protected final AnalyzeImageResponse response;
+    protected final AnalyzeImageResponse expectedAnalyzeImageResponse;
 
     public UnitTestBase() {
         Map<Integer, String> headerContent = new LinkedHashMap<>();
-        headerContent.put(0, "DATE");
-        headerContent.put(1, "AIRCRAFT");
-        headerContent.put(2, "REGISTRATION");
-        headerContent.put(3, "FROM");
-        headerContent.put(4, "TO");
-        headerContent.put(5, "TIME");
-        headerContent.put(6, "PIC");
-        headerContent.put(7, "SIC");
-        headerContent.put(8, "DUAL");
-        headerContent.put(9, "GROUND");
-        headerContent.put(10, "SIM");
-        headerContent.put(11, "XC");
-        headerContent.put(12, "DAY");
-        headerContent.put(13, "NIGHT");
-        headerContent.put(14, "IFR");
-        headerContent.put(15, "ACT");
-        headerContent.put(16, "SIM");
-        headerContent.put(17, "LANDINGS");
-        headerContent.put(18, "REMARKS");
+        headerContent.put(1,  "DATE");
+        headerContent.put(2,  "AIRCRAFT TYPE");
+        headerContent.put(3,  "AIRCRAFT IDENT");
+        headerContent.put(4,  "FROM");
+        headerContent.put(5,  "TO");
+        headerContent.put(6,  "NR INST APP");
+        headerContent.put(7,  "REMARKS AND ENDORSEMENTS");
+        headerContent.put(8,  "NR T/O");
+        headerContent.put(9,  "NR LDG");
+        headerContent.put(10, "SINGLE-ENGINE LAND");
+        headerContent.put(11, "SINGLE-ENGINE LAND");
+        headerContent.put(12, "MULTI ENGINE LAND");
+        headerContent.put(13, "MULTI ENGINE LAND");
+        headerContent.put(14, "INT APR");
+        headerContent.put(15, "INT APR");
+        headerContent.put(16, "INST APR");
+        headerContent.put(17, "INST APR");
+        headerContent.put(18, "NIGHT");
+        headerContent.put(19, "NIGHT");
+        headerContent.put(20, "ACTUAL INSTRUMENT");
+        headerContent.put(21, "ACTUAL INSTRUMENT");
+        headerContent.put(22, "SIMULATED INSTRUMENT (HOOD)");
+        headerContent.put(23, "SIMULATED INSTRUMENT (HOOD)");
+        headerContent.put(24, "FLIGHT SIMULATOR");
+        headerContent.put(25, "FLIGHT SIMULATOR");
+        headerContent.put(26, "CROSS COUNTRY");
+        headerContent.put(27, "CROSS COUNTRY");
+        headerContent.put(28, "AS FLIGHT INSTRUCTOR");
+        headerContent.put(29, "AS FLIGHT INSTRUCTOR");
+        headerContent.put(30, "DUAL RECEIVED");
+        headerContent.put(31, "DUAL RECEIVED");
+        headerContent.put(32, "PILOT IN COMMAND (INCL SOLO)");
+        headerContent.put(33, "PILOT IN COMMAND (INCL SOLO)");
+        headerContent.put(34, "TOTAL DURATION OF FLIGHT");
+        headerContent.put(35, "TOTAL DURATION OF FLIGHT");
 
         Map<Integer, String> headerParentHeaders = Map.ofEntries(
-                Map.entry(3, "ROUTE"),
-                Map.entry(4, "ROUTE"),
-                Map.entry(12, "CONDITION"),
-                Map.entry(13, "CONDITION"),
-                Map.entry(14, "CONDITION"),
-                Map.entry(15, "INSTRUMENT"),
-                Map.entry(16, "INSTRUMENT")
+            Map.entry(1,  "DATE"),
+            Map.entry(2,  "AIRCRAFT TYPE"),
+            Map.entry(3,  "AIRCRAFT IDENT"),
+            Map.entry(4,  "ROUTE OF FLIGHT"),
+            Map.entry(5,  "ROUTE OF FLIGHT"),
+            Map.entry(6,  "NR INST. APP."),
+            Map.entry(7,  "REMARKS AND ENDORSEMENTS"),
+            Map.entry(8,  "NR T/O"),
+            Map.entry(9,  "NR LDG"),
+            Map.entry(10, "AIRCRAFT CATEGORY SINGLE-"),
+            Map.entry(11, "AIRCRAFT CATEGORY SINGLE-"),
+            Map.entry(12, "AIRCRAFT CATEGORY SINGLE-"),
+            Map.entry(13, "AIRCRAFT CATEGORY SINGLE-"),
+            Map.entry(14, "AND CLASS"),
+            Map.entry(15, "AND CLASS"),
+            Map.entry(16, "AND CLASS"),
+            Map.entry(17, "AND CLASS"),
+            Map.entry(18, "CONDITIONS OF FLIGHT"),
+            Map.entry(19, "CONDITIONS OF FLIGHT"),
+            Map.entry(20, "CONDITIONS OF FLIGHT"),
+            Map.entry(21, "CONDITIONS OF FLIGHT"),
+            Map.entry(22, "CONDITIONS OF FLIGHT"),
+            Map.entry(23, "CONDITIONS OF FLIGHT"),
+            Map.entry(24, "FLIGHT SIMULATOR"),
+            Map.entry(25, "FLIGHT SIMULATOR"),
+            Map.entry(26, "TYPE OF PILOTING TIME"),
+            Map.entry(27, "TYPE OF PILOTING TIME"),
+            Map.entry(28, "TYPE OF PILOTING TIME"),
+            Map.entry(29, "TYPE OF PILOTING TIME"),
+            Map.entry(30, "TYPE OF PILOTING TIME"),
+            Map.entry(31, "TYPE OF PILOTING TIME"),
+            Map.entry(32, "TYPE OF PILOTING TIME"),
+            Map.entry(33, "TYPE OF PILOTING TIME"),
+            Map.entry(34, "TOTAL DURATION OF FLIGHT"),
+            Map.entry(35, "TOTAL DURATION OF FLIGHT")
         );
 
         headerRow = new RowDTO(
@@ -54,35 +98,43 @@ public class UnitTestBase {
         );
 
         Map<Integer, String> dataContent = new LinkedHashMap<>();
-        dataContent.put(0, "2023-01-01");
-        dataContent.put(1, "Cessna 172");
-        dataContent.put(2, "N12345");
-        dataContent.put(3, "KJFK");
-        dataContent.put(4, "KLAX");
-        dataContent.put(5, "5.0");
-        dataContent.put(6, "5.0");
-        dataContent.put(7, "0.0");
-        dataContent.put(8, "0.0");
-        dataContent.put(9, "0.0");
-        dataContent.put(10, "0.0");
-        dataContent.put(11, "5.0");
-        dataContent.put(12, "5.0");
-        dataContent.put(13, "0.0");
-        dataContent.put(14, "0.0");
-        dataContent.put(15, "0");
-        dataContent.put(16, "0");
-        dataContent.put(17, "1");
-        dataContent.put(18, "No remarks");
+        dataContent.put(1,  "2/2");
+        dataContent.put(2,  "C1725");
+        dataContent.put(3,  "N678ND");
+        dataContent.put(4,  "PHX");
+        dataContent.put(5,  "SEA");
+        dataContent.put(6,  "2");
+        dataContent.put(7,  "avilliqué");
+        dataContent.put(8,  "3");
+        dataContent.put(9,  "3");
+        dataContent.put(10, "1");
+        dataContent.put(11, "5");
+        dataContent.put(12, "0");
+        dataContent.put(13, "0");
+        dataContent.put(14, "RNAV");
+        dataContent.put(15, "CGC");
+        dataContent.put(16, "VOR RW-15");
+        dataContent.put(17, "ClaZ");
+        dataContent.put(18, "0");
+        dataContent.put(19, "0");
+        dataContent.put(20, "0");
+        dataContent.put(21, "0");
+        dataContent.put(22, "0");
+        dataContent.put(23, "0");
+        dataContent.put(24, "0");
+        dataContent.put(25, "0");
+        dataContent.put(26, "1");
+        dataContent.put(27, "5");
+        dataContent.put(28, "0");
+        dataContent.put(29, "0");
+        dataContent.put(30, "0");
+        dataContent.put(31, "0");
+        dataContent.put(32, "1");
+        dataContent.put(33, "5");
+        dataContent.put(34, "1");
+        dataContent.put(35, "5");
 
-        Map<Integer, String> dataParentHeaders = Map.ofEntries(
-                Map.entry(3, "ROUTE"),
-                Map.entry(4, "ROUTE"),
-                Map.entry(12, "CONDITION"),
-                Map.entry(13, "CONDITION"),
-                Map.entry(14, "CONDITION"),
-                Map.entry(15, "INSTRUMENT"),
-                Map.entry(16, "INSTRUMENT")
-        );
+        Map<Integer, String> dataParentHeaders = headerParentHeaders;
 
         dataRow = new RowDTO(
                 1,
@@ -91,7 +143,7 @@ public class UnitTestBase {
                 false
         );
 
-        response = AnalyzeImageResponse.builder()
+        expectedAnalyzeImageResponse = AnalyzeImageResponse.builder()
                 .tables(List.of(headerRow, dataRow))
                 .status("SUCCESS")
                 .errorMessage(null)
@@ -100,8 +152,8 @@ public class UnitTestBase {
 
     protected List<TableRow> defaultTableRows() {
         return List.of(
-            new TableRow(headerRow.rowIndex(), headerRow.content(), headerRow.isHeader(), headerRow.parentHeaders()),
-            new TableRow(dataRow.rowIndex(), dataRow.content(), dataRow.isHeader(), dataRow.parentHeaders())
+            new TableRow(headerRow.rowIndex(), headerRow.content(), headerRow.header(), headerRow.parentHeaders()),
+            new TableRow(dataRow.rowIndex(), dataRow.content(), dataRow.header(), dataRow.parentHeaders())
         );
     }
 }

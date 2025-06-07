@@ -2,7 +2,6 @@ package com.flt.fltspring.service;
 
 import com.flt.fltspring.model.bizlogic.TableRow;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -13,15 +12,12 @@ import java.util.Map;
 @Slf4j
 @Service
 public class LogbookValidationService {
-    private Map<String, String> headerMap;
+    private final Map<String, String> headerMap;
 
-    @Autowired
-    public void init() {
+    public LogbookValidationService() {
         this.headerMap = new HashMap<>();
         headerMap.put("single- engine land", "SINGLE-ENGINE LAND");
         headerMap.put("multi- engine land", "MULTI-ENGINE LAND");
-
-        //Potential to mis-map single to multi or vice versa here. Not sure on solution yet.
         headerMap.put("engine land", "SINGLE-ENGINE LAND");
     }
 

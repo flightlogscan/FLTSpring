@@ -34,9 +34,9 @@ public class TableDataTransformerService {
                 ));
 
         List<TableRow> result = new ArrayList<>();
-        // Process header row
+
         result.add(processRow(headerRow, columnTypes, true));
-        // Process data rows
+
         for (int i = 1; i < rows.size(); i++) {
             result.add(processRow(rows.get(i), columnTypes, false));
         }

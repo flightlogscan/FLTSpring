@@ -1,5 +1,6 @@
 package com.flt.fltspring.config;
 
+import lombok.Getter;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -10,6 +11,7 @@ import java.util.Map;
  * Centralized OCR character-replacement mappings.
  * Supports numeric, airport-code, and generic string replacements.
  */
+@Getter
 @Component
 public class CharacterReplacementConfig {
 
@@ -70,17 +72,5 @@ public class CharacterReplacementConfig {
         stringReplacements.put("7", "");
         stringReplacements.put("8", "");
         stringReplacements.put("9", "");
-    }
-
-    public Map<String, String> getNumericReplacements() {
-        return numericReplacements;
-    }
-
-    public Map<String, String> getAirportCodeReplacements() {
-        return airportCodeReplacements;
-    }
-
-    public Map<String, String> getStringReplacements() {
-        return stringReplacements;
     }
 }

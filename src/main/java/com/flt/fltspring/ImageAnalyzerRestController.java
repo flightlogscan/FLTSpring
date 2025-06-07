@@ -8,8 +8,10 @@ import com.flt.fltspring.dao.DocumentIntelligenceDao;
 import com.flt.fltspring.model.bizlogic.TableRow;
 import com.flt.fltspring.model.bizlogic.TableStructure;
 import com.flt.fltspring.model.service.AnalyzeImageResponse;
+import com.flt.fltspring.service.LogbookValidationService;
 import com.flt.fltspring.service.ResultConverterService;
 import com.flt.fltspring.service.RowConversionService;
+import com.flt.fltspring.service.TableDataTransformerService;
 import com.flt.fltspring.service.TableProcessorService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -38,10 +40,12 @@ public class ImageAnalyzerRestController {
     private static final String ERROR_STATUS = "ERROR";
     
     private final ObjectMapper objectMapper;
-    private final ResultConverterService resultConverterService;
     private final DocumentIntelligenceDao documentIntelligenceDao;
-    private final RowConversionService rowConversionService;
+    private final ResultConverterService resultConverterService;
     private final TableProcessorService tableProcessorService;
+    private final TableDataTransformerService transformer;
+    private final LogbookValidationService validationService;
+    private final RowConversionService rowConversionService;
 
     /**
      * Takes an image of a flight log and return the text as structured data.
@@ -67,10 +71,9 @@ public class ImageAnalyzerRestController {
             }
             final BinaryData documentData = BinaryData.fromBytes(fileBytes);
 
-            // Process document through Azure
             final AnalyzeResult analyzeResult = documentIntelligenceDao.analyzeDocumentSync(documentData);
-            
-            // Convert Azure structures to our own
+            log.info("AnalyzeResult: {}", objectMapper.writeValueAsString(analyzeResult));
+
             final List<TableStructure> tables = resultConverterService.convertToTable(analyzeResult);
 
             if (CollectionUtils.isEmpty(tables)) {
@@ -80,7 +83,11 @@ public class ImageAnalyzerRestController {
             
             final List<TableRow> tableRows = tableProcessorService.processTables(tables);
 
-            final AnalyzeImageResponse response = rowConversionService.toRowDTO(tableRows);
+            final List<TableRow> transformed = transformer.transformData(tableRows);
+
+            final List<TableRow> validated = validationService.validateAndCorrect(transformed);
+
+            final AnalyzeImageResponse response = rowConversionService.toRowDTO(validated);
 
             log.info("Final response structure: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
 
