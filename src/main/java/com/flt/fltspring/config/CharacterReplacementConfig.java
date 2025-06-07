@@ -1,4 +1,4 @@
-package com.flt.fltspring.service.transform;
+package com.flt.fltspring.config;
 
 import org.springframework.stereotype.Component;
 

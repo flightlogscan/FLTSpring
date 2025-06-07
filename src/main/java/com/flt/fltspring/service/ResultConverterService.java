@@ -1,9 +1,10 @@
 package com.flt.fltspring.service;
 
 import com.azure.ai.documentintelligence.models.AnalyzeResult;
-import org.springframework.stereotype.Service;
-import com.flt.fltspring.model.dependency.DocumentTableCellAdapter;
 import com.flt.fltspring.model.bizlogic.TableStructure;
+import com.flt.fltspring.model.dependency.DocumentTableCellAdapter;
+import org.springframework.stereotype.Service;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;

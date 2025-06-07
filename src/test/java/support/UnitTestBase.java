@@ -1,12 +1,12 @@
 package support;
 
+import com.flt.fltspring.model.bizlogic.TableRow;
 import com.flt.fltspring.model.service.AnalyzeImageResponse;
 import com.flt.fltspring.model.service.RowDTO;
-import com.flt.fltspring.model.bizlogic.TableRow;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.LinkedHashMap;
 
 public class UnitTestBase {
 

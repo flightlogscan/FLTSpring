@@ -1,15 +1,15 @@
 package com.flt.fltspring.service;
 
+import com.flt.fltspring.config.CharacterReplacementConfig;
 import com.flt.fltspring.config.ColumnConfig;
 import com.flt.fltspring.model.bizlogic.TableRow;
-import com.flt.fltspring.service.transform.CharacterReplacementConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Collections;
 import java.util.stream.Collectors;
 
 /**
