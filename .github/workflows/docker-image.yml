@@ -35,6 +35,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: ./deploy/deploy.sh
           target: /tmp/
+          port: 114
 
       - name: Run deploy script on server
         uses: appleboy/ssh-action@v1.0.0
@@ -42,6 +43,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 114
           script: |
             chmod +x /tmp/deploy.sh
             IMAGE_TAG=${{ env.COMMIT_SHA }} /tmp/deploy.sh
