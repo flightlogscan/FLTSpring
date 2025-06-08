@@ -27,17 +27,12 @@ jobs:
           docker push flightlogscanner/flightlogscan:$COMMIT_SHA
           echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_ENV
 
-      - name: Upload deploy script to server
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: ./deploy/deploy.sh
-          target: /home/deploy/deploy.sh
-          port: 114
-          debug: true
-          strip_components: 0
+      - name: Upload deploy script with raw scp
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > key.pem
+          chmod 600 key.pem
+          scp -P 114 -i key.pem ./deploy/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/deploy/deploy.sh
+        shell: bash
 
       - name: Run deploy script on server
         uses: appleboy/ssh-action@v1.0.0
