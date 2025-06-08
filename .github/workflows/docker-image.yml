@@ -18,34 +18,23 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push Docker image
-        run: |
-          COMMIT_SHA=$(git rev-parse --short HEAD)
-          docker build --platform linux/amd64 -t flightlogscanner/flightlogscan:latest .
-          docker tag flightlogscanner/flightlogscan:latest flightlogscanner/flightlogscan:$COMMIT_SHA
-          docker push flightlogscanner/flightlogscan:latest
-          docker push flightlogscanner/flightlogscan:$COMMIT_SHA
-          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_ENV
-
-      - name: Upload deploy script to server
-        uses: appleboy/scp-action@v0.1.4
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: ./deploy/deploy.sh
-          target: /home/deploy/deploy.sh
-          port: 114
-          debug: true
-          strip_components: 0
+          context: .
+          push: true
+          tags: |
+            flightlogscanner/flightlogscan:latest
+            flightlogscanner/flightlogscan:${{ github.sha }}
+          platforms: linux/amd64
 
-      - name: Run deploy script on server
+      - name: Deploy to Hetzner Server via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 114
-          script: |
-            chmod +x /home/deploy/deploy.sh
-            IMAGE_TAG=${{ env.COMMIT_SHA }} /home/deploy/deploy.sh
+          script_stop_on_error: true
+          env: |
+            GITHUB_COMMIT_SHA=${{ github.sha }} # Format as a string, not a map
+          script_path: deploy/deploy.sh

@@ -1,27 +1,16 @@
 #!/bin/bash
 
-# Prevent command history logging
-set +o history
-
-# Exit on any error
-set -e
-
-# Docker Hub credentials from environment
-if ! sudo docker info | grep -q Username; then
-    log "Logging in to Docker Hub..."
-    echo "$DOCKER_PASSWORD" | sudo docker login -u "$DOCKER_USERNAME" --password-stdin
-fi
-
 # Configuration
 ENV_FILE="/etc/flightlogscan.env"
 PORT=8080
 TIMEOUT=60  # Max seconds to wait for health check
 INTERVAL=5  # Seconds between health check retries
 
-# Function to log messages
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
 }
+
+log "Starting deployment on server..."
 
 if ! sudo test -f "$ENV_FILE"; then
     log "ERROR: Environment file $ENV_FILE not found"
@@ -33,16 +22,17 @@ if ! sudo test -r "$ENV_FILE"; then
     exit 1
 fi
 
-IMAGE_TAG=${IMAGE_TAG:-latest}
-log "Pulling image flightlogscanner/flightlogscan:$IMAGE_TAG from Docker Hub..."
-sudo docker pull flightlogscanner/flightlogscan:$IMAGE_TAG
+IMAGE_TAG="${GITHUB_COMMIT_SHA}"
+log "Pulling image flightlogscanner/flightlogscan:\"$IMAGE_TAG\" from Docker Hub..."
+sudo docker pull "flightlogscanner/flightlogscan:$IMAGE_TAG"
 
 log "Removing existing container if present..."
-sudo docker rm -f flightlogscan 2>/dev/null || true
+sudo docker stop flightlogscan 2>/dev/null || true
+sudo docker rm flightlogscan 2>/dev/null || true
 
 log "Checking port $PORT availability..."
 if sudo lsof -i :$PORT; then
-    log "ERROR: Another process is using port $PORT"
+    log "ERROR: Another process *might* be using port $PORT."
     exit 1
 fi
 
@@ -63,10 +53,9 @@ sudo docker run -d \
 
 log "Starting health check (timeout: ${TIMEOUT}s)..."
 start_time=$(date +%s)
-timeout=$TIMEOUT
 
 while true; do
-    if curl -sf --connect-timeout 2 http://localhost:$PORT/api/ping >/dev/null; then
+    if curl -sf --connect-timeout 5 http://localhost:$PORT/api/ping >/dev/null; then
         log "Health check passed!"
         break
     fi
@@ -84,8 +73,6 @@ while true; do
 done
 
 log "Pruning unused and old Docker images..."
-sudo docker image prune -a -f --filter "until=24h" --filter "label=repository=flightlogscanner/flightlogscan"
-
-set -o history
+sudo docker image prune -f --filter "until=24h"
 
 log "Deployment completed successfully"
