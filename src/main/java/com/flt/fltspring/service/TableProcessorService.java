@@ -41,7 +41,7 @@ public class TableProcessorService {
             "TYPE OF PILOT EXPERIENCE OR TRAINING"
     );
 
-    public List<TableRow> processTables(List<TableStructure> tables) {
+    public List<TableRow> extractRowsFromTables(List<TableStructure> tables) {
         log.info("Processing {} tables", tables.size());
         List<TableStructure> orderedTables = reorderTablesByDate(tables);
 
