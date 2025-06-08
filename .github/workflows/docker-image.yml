@@ -36,6 +36,7 @@ jobs:
           source: ./deploy/deploy.sh
           target: /home/deploy/
           port: 114
+          debug: true
 
       - name: Run deploy script on server
         uses: appleboy/ssh-action@v1.0.0
