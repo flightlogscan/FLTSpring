@@ -8,7 +8,6 @@ import com.flt.fltspring.dao.DocumentIntelligenceDao;
 import com.flt.fltspring.model.bizlogic.TableRow;
 import com.flt.fltspring.model.bizlogic.TableStructure;
 import com.flt.fltspring.model.service.AnalyzeImageResponse;
-import com.flt.fltspring.service.LogbookValidationService;
 import com.flt.fltspring.service.ResultConverterService;
 import com.flt.fltspring.service.RowConversionService;
 import com.flt.fltspring.service.TableDataTransformerService;
@@ -43,7 +42,6 @@ public class ImageAnalyzerRestController {
     private final ResultConverterService resultConverterService;
     private final TableProcessorService tableProcessorService;
     private final TableDataTransformerService transformer;
-    private final LogbookValidationService validationService;
     private final RowConversionService rowConversionService;
 
     /**
@@ -71,7 +69,6 @@ public class ImageAnalyzerRestController {
             final BinaryData documentData = BinaryData.fromBytes(fileBytes);
 
             final AnalyzeResult analyzeResult = documentIntelligenceDao.analyzeDocumentSync(documentData);
-            log.info("AnalyzeResult: {}", objectMapper.writeValueAsString(analyzeResult));
 
             final List<TableStructure> tables = resultConverterService.convertToTable(analyzeResult);
 
@@ -79,14 +76,12 @@ public class ImageAnalyzerRestController {
                 log.warn("No tables detected in the document");
                 return buildErrorResponse("No tables detected in the document", HttpStatus.BAD_REQUEST);
             }
-            
+
             final List<TableRow> tableRows = tableProcessorService.extractRowsFromTables(tables);
 
             final List<TableRow> transformedRows = transformer.transformData(tableRows);
 
-            final List<TableRow> validated = validationService.validateAndCorrect(transformedRows);
-
-            final AnalyzeImageResponse response = rowConversionService.toRowDTO(validated);
+            final AnalyzeImageResponse response = rowConversionService.toRowDTO(transformedRows);
 
             log.info("Final response structure: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
 

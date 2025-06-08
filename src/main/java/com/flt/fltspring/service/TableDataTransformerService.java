@@ -7,92 +7,113 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
-/**
- * Transformer: processes header and data rows.
- */
 @Service
 @RequiredArgsConstructor
 public class TableDataTransformerService {
 
+    // Used to correct common header errors
+    private static final Map<String, String> HEADER_CANONICAL_MAP = Map.of(
+            "ENGINE LAND", "SINGLE-ENGINE LAND",
+            "SINGLE-ENGINE LAND", "SINGLE-ENGINE LAND",
+            "MULTI-ENGINE LAND", "MULTI-ENGINE LAND",
+            "MULTI- ENGINE LAND", "MULTI-ENGINE LAND"
+    );
+
     private final ColumnConfig[] columnConfigs;
     private final CharacterReplacementConfig replacementConfig;
 
+    /**
+     * Normalize header and data rows in one pass.
+     */
     public List<TableRow> transformData(List<TableRow> rows) {
-        if (rows.isEmpty()) return rows;
-
-        // Determine type for each column from header row
-        TableRow headerRow = rows.getFirst();
-        Map<Integer, String> columnTypes = headerRow.getColumnData().entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        e -> findTypeForHeader(e.getValue())
-                ));
-
-        List<TableRow> result = new ArrayList<>();
-
-        result.add(processRow(headerRow, columnTypes, true));
-
-        for (int i = 1; i < rows.size(); i++) {
-            result.add(processRow(rows.get(i), columnTypes, false));
+        if (rows == null || rows.isEmpty()) {
+            return Collections.emptyList();
         }
-        return result;
-    }
 
-    private TableRow processRow(TableRow row, Map<Integer, String> types, boolean isHeader) {
-        Map<Integer, String> transformed = row.getColumnData().entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        e -> applyReplacements(e.getValue(), types.getOrDefault(e.getKey(), "STRING"), isHeader)
-                ));
+        // Infer column types from the first (header) row
+        TableRow headerRow = rows.get(0);
+        Map<Integer, String> columnTypeMap = new LinkedHashMap<>();
+        for (Map.Entry<Integer, String> entry : headerRow.getColumnData().entrySet()) {
+            String rawHeader = Optional.ofNullable(entry.getValue())
+                    .map(String::trim)
+                    .orElse("")
+                    .toUpperCase();
+            String canonicalHeader = HEADER_CANONICAL_MAP.getOrDefault(rawHeader, rawHeader);
+            String type = Arrays.stream(columnConfigs)
+                    .filter(cfg -> cfg.getFieldName().equalsIgnoreCase(canonicalHeader))
+                    .map(ColumnConfig::getType)
+                    .findFirst()
+                    .orElse("STRING");
+            columnTypeMap.put(entry.getKey(), type);
+        }
 
-        return TableRow.builder()
-                .rowIndex(row.getRowIndex())
-                .columnData(transformed)
-                .isHeader(isHeader)
-                .parentHeaders(row.getParentHeaders())
-                .build();
-    }
+        List<TableRow> normalizedRows = new ArrayList<>(rows.size());
+        for (int i = 0; i < rows.size(); i++) {
+            TableRow original = rows.get(i);
+            boolean isHeader = (i == 0);
 
-    private String findTypeForHeader(String header) {
-        if (header == null) return "STRING";
-        String trimmed = header.trim();
-        return java.util.Arrays.stream(columnConfigs)
-                .filter(cfg -> cfg.getFieldName().equalsIgnoreCase(trimmed))
-                .map(ColumnConfig::getType)
-                .findFirst()
-                .orElse("STRING");
-    }
-
-    private String applyReplacements(String value, String type, boolean isHeader) {
-        if (value == null) return null;
-        String result = value.trim();
-
-        Map<String, String> replMap;
-        if (isHeader) {
-            // Use header/string replacements
-            replMap = replacementConfig.getStringReplacements();
-        } else {
-            switch (type) {
-                case "INTEGER":
-                    replMap = replacementConfig.getNumericReplacements();
-                    break;
-                case "AIRPORT_CODE":
-                    replMap = replacementConfig.getAirportCodeReplacements();
-                    break;
-                default:
-                    // No replacements for other data fields
-                    replMap = Collections.emptyMap();
+            Map<Integer, String> normalizedData = new LinkedHashMap<>();
+            for (Map.Entry<Integer, String> cell : original.getColumnData().entrySet()) {
+                int colIndex = cell.getKey();
+                String rawValue = cell.getValue();
+                String columnType = columnTypeMap.getOrDefault(colIndex, "STRING");
+                String normalizedValue = normalizeCell(rawValue, columnType, isHeader);
+                normalizedData.put(colIndex, normalizedValue);
             }
+
+            normalizedRows.add(TableRow.builder()
+                    .rowIndex(original.getRowIndex())
+                    .columnData(normalizedData)
+                    .isHeader(isHeader)
+                    .parentHeaders(original.getParentHeaders())
+                    .build());
         }
-        // Apply replacements
-        for (Map.Entry<String, String> entry : replMap.entrySet()) {
-            result = result.replace(entry.getKey(), entry.getValue());
+
+        return normalizedRows;
+    }
+
+    /**
+     * Trim and apply header or type-based replacements.
+     * TODO: I don't like that clients have to do this
+     */
+    private String normalizeCell(String rawValue, String columnType, boolean isHeader) {
+        if (rawValue == null) {
+            return null;
         }
-        return result;
+        String value = rawValue.trim();
+
+        if (isHeader) {
+            String headerKey = value.toUpperCase();
+            // Canonicalize header
+            value = HEADER_CANONICAL_MAP.getOrDefault(headerKey, value);
+            // Apply generic string replacements
+            for (Map.Entry<String, String> repl : replacementConfig.getStringReplacements().entrySet()) {
+                value = value.replace(repl.getKey(), repl.getValue());
+            }
+            return value;
+        }
+
+        // For data rows, apply type-specific replacements
+        Map<String, String> replacements;
+        if ("INTEGER".equalsIgnoreCase(columnType)) {
+            replacements = replacementConfig.getNumericReplacements();
+        } else if ("AIRPORT_CODE".equalsIgnoreCase(columnType)) {
+            replacements = replacementConfig.getAirportCodeReplacements();
+        } else if ("DATE".equalsIgnoreCase(columnType)) {
+            replacements = replacementConfig.getDateReplacements();
+        } else {
+            replacements = replacementConfig.getStringReplacements();
+        }
+        for (Map.Entry<String, String> repl : replacements.entrySet()) {
+            value = value.replace(repl.getKey(), repl.getValue());
+        }
+        return value;
     }
 }

@@ -8,7 +8,6 @@ import com.flt.fltspring.model.bizlogic.TableRow;
 import com.flt.fltspring.model.bizlogic.TableStructure;
 import com.flt.fltspring.model.service.AnalyzeImageResponse;
 import com.flt.fltspring.model.service.RowDTO;
-import com.flt.fltspring.service.LogbookValidationService;
 import com.flt.fltspring.service.ResultConverterService;
 import com.flt.fltspring.service.RowConversionService;
 import com.flt.fltspring.service.TableDataTransformerService;
@@ -41,7 +40,6 @@ class FLTBizLogicTest extends UnitTestBase {
     private ResultConverterService resultConverterService;
     private TableProcessorService tableProcessorService;
     private TableDataTransformerService tableDataTransformerService;
-    private LogbookValidationService logbookValidationService;
     private RowConversionService rowConversionService;
 
     private ObjectMapper objectMapper;
@@ -57,7 +55,6 @@ class FLTBizLogicTest extends UnitTestBase {
                 );
 
         config.initialize();
-        logbookValidationService = new LogbookValidationService();
         rowConversionService = new RowConversionService();
         objectMapper = new ObjectMapper();
     }
@@ -77,8 +74,7 @@ class FLTBizLogicTest extends UnitTestBase {
             final List<TableStructure> tables = resultConverterService.convertToTable(analyzeResult);
             final List<TableRow> tableRows = tableProcessorService.extractRowsFromTables(tables);
             final List<TableRow> transformed = tableDataTransformerService.transformData(tableRows);
-            final List<TableRow> validated = logbookValidationService.validateAndCorrect(transformed);
-            final AnalyzeImageResponse actualResponse = rowConversionService.toRowDTO(validated);
+            final AnalyzeImageResponse actualResponse = rowConversionService.toRowDTO(transformed);
 
             assertEquals(expectedResponse.getStatus(), actualResponse.getStatus(), "Status mismatch");
             assertEquals(expectedResponse.getErrorMessage(), actualResponse.getErrorMessage(), "Error message mismatch");

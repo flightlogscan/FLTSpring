@@ -21,6 +21,8 @@ public class CharacterReplacementConfig {
     private final Map<String, String> airportCodeReplacements = new HashMap<>();
     // Generic string replacements (e.g. strip or correct common OCR artifacts in text)
     private final Map<String, String> stringReplacements = new HashMap<>();
+    // Dates are tricky because they might just be numbers ("6/9") with a slash or free text ("June 9th")
+    private final Map<String, String> dateReplacements = new HashMap<>();
 
     @PostConstruct
     public void initialize() {
@@ -58,19 +60,20 @@ public class CharacterReplacementConfig {
         airportCodeReplacements.put(".", "");
 
         // Generic string replacements: same as airport codes but keep spaces
-        stringReplacements.putAll(airportCodeReplacements);
+        // stringReplacements.putAll(airportCodeReplacements);
         stringReplacements.remove(" ");         // Allow spaces in headers/text
+        stringReplacements.remove("-");         // Allow hyphens in headers/text
 
         // Additionally strip digits in free text (for headers only?)
-        stringReplacements.put("0", "");
-        stringReplacements.put("1", "");
-        stringReplacements.put("2", "");
-        stringReplacements.put("3", "");
-        stringReplacements.put("4", "");
-        stringReplacements.put("5", "");
-        stringReplacements.put("6", "");
-        stringReplacements.put("7", "");
-        stringReplacements.put("8", "");
-        stringReplacements.put("9", "");
+//        stringReplacements.put("0", "");
+//        stringReplacements.put("1", "");
+//        stringReplacements.put("2", "");
+//        stringReplacements.put("3", "");
+//        stringReplacements.put("4", "");
+//        stringReplacements.put("5", "");
+//        stringReplacements.put("6", "");
+//        stringReplacements.put("7", "");
+//        stringReplacements.put("8", "");
+//        stringReplacements.put("9", "");
     }
 }
