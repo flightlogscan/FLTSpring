@@ -34,7 +34,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: ./deploy/deploy.sh
-          target: /tmp/
+          target: /home/deploy/
           port: 114
 
       - name: Run deploy script on server
@@ -45,5 +45,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 114
           script: |
-            chmod +x /tmp/deploy.sh
-            IMAGE_TAG=${{ env.COMMIT_SHA }} /tmp/deploy.sh
+            chmod +x /home/deploy/deploy.sh
+            IMAGE_TAG=${{ env.COMMIT_SHA }} /home/deploy/deploy.sh
