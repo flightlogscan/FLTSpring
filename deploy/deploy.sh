@@ -6,6 +6,12 @@ set +o history
 # Exit on any error
 set -e
 
+# Docker Hub credentials from environment
+if ! sudo docker info | grep -q Username; then
+    log "Logging in to Docker Hub..."
+    echo "$DOCKER_PASSWORD" | sudo docker login -u "$DOCKER_USERNAME" --password-stdin
+fi
+
 # Configuration
 ENV_FILE="/etc/flightlogscan.env"
 PORT=8080
