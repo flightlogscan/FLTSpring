@@ -36,7 +36,6 @@ import java.util.concurrent.TimeoutException;
 public class ImageAnalyzerRestController {
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-    private static final String SUCCESS_STATUS = "SUCCESS";
     private static final String ERROR_STATUS = "ERROR";
     
     private final ObjectMapper objectMapper;
@@ -62,13 +61,13 @@ public class ImageAnalyzerRestController {
     public ResponseEntity<AnalyzeImageResponse> submitAnalyzeImage(final HttpServletRequest request) {
         try {
             log.info("Starting document analysis");
-            
-            // Read input stream with size check
+
             byte[] fileBytes = IOUtils.toByteArray(request.getInputStream());
             if (fileBytes.length > MAX_FILE_SIZE) {
                 log.warn("File size exceeds limit: {} bytes", fileBytes.length);
                 return buildErrorResponse("File size exceeds maximum limit of 10MB", HttpStatus.PAYLOAD_TOO_LARGE);
             }
+
             final BinaryData documentData = BinaryData.fromBytes(fileBytes);
 
             final AnalyzeResult analyzeResult = documentIntelligenceDao.analyzeDocumentSync(documentData);
@@ -81,11 +80,11 @@ public class ImageAnalyzerRestController {
                 return buildErrorResponse("No tables detected in the document", HttpStatus.BAD_REQUEST);
             }
             
-            final List<TableRow> tableRows = tableProcessorService.processTables(tables);
+            final List<TableRow> tableRows = tableProcessorService.extractRowsFromTables(tables);
 
-            final List<TableRow> transformed = transformer.transformData(tableRows);
+            final List<TableRow> transformedRows = transformer.transformData(tableRows);
 
-            final List<TableRow> validated = validationService.validateAndCorrect(transformed);
+            final List<TableRow> validated = validationService.validateAndCorrect(transformedRows);
 
             final AnalyzeImageResponse response = rowConversionService.toRowDTO(validated);
 
