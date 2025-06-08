@@ -37,7 +37,7 @@ jobs:
           target: /home/deploy/
           port: 114
           debug: true
-          strip_components: 1
+          strip_components: 2
 
       - name: Run deploy script on server
         uses: appleboy/ssh-action@v1.0.0
