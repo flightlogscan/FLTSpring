@@ -1,0 +1,47 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        run: |
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          docker build --platform linux/amd64 -t flightlogscanner/flightlogscan:latest .
+          docker tag flightlogscanner/flightlogscan:latest flightlogscanner/flightlogscan:$COMMIT_SHA
+          docker push flightlogscanner/flightlogscan:latest
+          docker push flightlogscanner/flightlogscan:$COMMIT_SHA
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_ENV
+
+      - name: Upload deploy script to server
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ./deploy/deploy.sh
+          target: /tmp/
+
+      - name: Run deploy script on server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            chmod +x /tmp/deploy.sh
+            IMAGE_TAG=${{ env.COMMIT_SHA }} /tmp/deploy.sh
