@@ -34,10 +34,10 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: ./deploy/deploy.sh
-          target: /home/deploy/
+          target: /home/deploy/deploy.sh
           port: 114
           debug: true
-          strip_components: 2
+          strip_components: 0
 
       - name: Run deploy script on server
         uses: appleboy/ssh-action@v1.0.0
