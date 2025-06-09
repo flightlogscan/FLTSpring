@@ -10,7 +10,7 @@ public class LogbookConfiguration {
     @Bean
     public ColumnConfig[] columnConfigs() {
         return new ColumnConfig[] {
-                new ColumnConfig("DATE", "STRING"),
+                new ColumnConfig("DATE", "DATE"),
                 new ColumnConfig("AIRCRAFT TYPE", "STRING"),
                 new ColumnConfig("AIRCRAFT IDENT", "STRING"),
                 new ColumnConfig("FROM", "AIRPORT_CODE"),

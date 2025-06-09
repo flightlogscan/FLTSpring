@@ -21,14 +21,14 @@ public class UnitTestBase {
         headerContent.put(3,  "AIRCRAFT IDENT");
         headerContent.put(4,  "FROM");
         headerContent.put(5,  "TO");
-        headerContent.put(6,  "NR INST APP");
+        headerContent.put(6,  "NR INST. APP.");
         headerContent.put(7,  "REMARKS AND ENDORSEMENTS");
         headerContent.put(8,  "NR T/O");
         headerContent.put(9,  "NR LDG");
         headerContent.put(10, "SINGLE-ENGINE LAND");
         headerContent.put(11, "SINGLE-ENGINE LAND");
-        headerContent.put(12, "MULTI ENGINE LAND");
-        headerContent.put(13, "MULTI ENGINE LAND");
+        headerContent.put(12, "MULTI-ENGINE LAND");
+        headerContent.put(13, "MULTI-ENGINE LAND");
         headerContent.put(14, "INT APR");
         headerContent.put(15, "INT APR");
         headerContent.put(16, "INST APR");
@@ -47,8 +47,8 @@ public class UnitTestBase {
         headerContent.put(29, "AS FLIGHT INSTRUCTOR");
         headerContent.put(30, "DUAL RECEIVED");
         headerContent.put(31, "DUAL RECEIVED");
-        headerContent.put(32, "PILOT IN COMMAND (INCL SOLO)");
-        headerContent.put(33, "PILOT IN COMMAND (INCL SOLO)");
+        headerContent.put(32, "PILOT IN COMMAND (INCL. SOLO)");
+        headerContent.put(33, "PILOT IN COMMAND (INCL. SOLO)");
         headerContent.put(34, "TOTAL DURATION OF FLIGHT");
         headerContent.put(35, "TOTAL DURATION OF FLIGHT");
 
