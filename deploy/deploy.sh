@@ -22,7 +22,12 @@ if ! sudo test -r "$ENV_FILE"; then
     exit 1
 fi
 
-IMAGE_TAG="${GITHUB_COMMIT_SHA}"
+IMAGE_TAG="$1"
+if [ -z "$IMAGE_TAG" ]; then
+    log "ERROR: No image tag provided."
+    log "Usage: $0 <image-tag>"
+    exit 1
+fi
 log "Pulling image flightlogscanner/flightlogscan:\"$IMAGE_TAG\" from Docker Hub..."
 sudo docker pull "flightlogscanner/flightlogscan:$IMAGE_TAG"
 

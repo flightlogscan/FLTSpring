@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,13 +28,10 @@ jobs:
             flightlogscanner/flightlogscan:${{ github.sha }}
           platforms: linux/amd64
 
-      - name: Deploy to Hetzner Server via SSH
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script_stop_on_error: true
-          env: |
-            GITHUB_COMMIT_SHA=${{ github.sha }} # Format as a string, not a map
-          script_path: deploy/deploy.sh
+  deploy:
+    needs: build
+    runs-on: [self-hosted, hetzner]
+
+    steps:
+      - name: Run deploy script
+        run: /opt/flightlogscan/bin/deploy.sh ${{ github.sha }}
