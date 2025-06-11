@@ -3,9 +3,12 @@ name: Build and Deploy
 on:
   push:
     branches: [main]
+  repository_dispatch:
+    types: [infra_updated]
 
 jobs:
   build:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
@@ -29,9 +32,18 @@ jobs:
           platforms: linux/amd64
 
   deploy:
-    needs: build
     runs-on: [self-hosted, hetzner]
-
+    if: github.event_name == 'push'
+    needs: build
     steps:
       - name: Run deploy script
-        run: /opt/flightlogscan/bin/deploy.sh ${{ github.sha }}
+        run: |
+          /opt/flightlogscan/bin/deploy.sh ${{ github.sha }}
+
+  deploy_from_infra:
+    runs-on: [self-hosted, hetzner]
+    if: github.event_name == 'repository_dispatch'
+    steps:
+      - name: Run deploy script
+        run: |
+          /opt/flightlogscan/bin/deploy.sh ${{ github.event.client_payload.sha }}
