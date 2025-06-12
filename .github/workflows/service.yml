@@ -38,7 +38,7 @@ jobs:
     steps:
       - name: Run deploy script
         run: |
-          /opt/flightlogscan/bin/deploy.sh ${{ github.sha }}
+          /opt/flightlogscan/bin/deploy.sh ${{ github.sha }} "${{ secrets.API_TOKEN }}"
 
   deploy_from_infra:
     runs-on: [self-hosted, hetzner]
@@ -46,4 +46,4 @@ jobs:
     steps:
       - name: Run deploy script
         run: |
-          /opt/flightlogscan/bin/deploy.sh ${{ github.event.client_payload.sha }}
+          /opt/flightlogscan/bin/deploy.sh ${{ github.event.client_payload.sha }} "${{ secrets.API_TOKEN }}"
