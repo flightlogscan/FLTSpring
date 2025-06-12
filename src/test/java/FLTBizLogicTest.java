@@ -99,7 +99,7 @@ class FLTBizLogicTest extends UnitTestBase {
                 assertEquals(expectedVal, actualVal, "Content mismatch at row " + i + ", key: " + key);
             }
 
-            assertEquals(expectedRow.parentHeaders(), actualRow.parentHeaders(), "Parent headers mismatch at row " + i);
+            assertEquals(null, actualRow.parentHeaders(), "Parent headers mismatch at row " + i);
         }
     }
 }

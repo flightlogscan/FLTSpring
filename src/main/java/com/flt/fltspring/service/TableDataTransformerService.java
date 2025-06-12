@@ -23,7 +23,8 @@ public class TableDataTransformerService {
             "ENGINE LAND", "SINGLE-ENGINE LAND",
             "SINGLE-ENGINE LAND", "SINGLE-ENGINE LAND",
             "MULTI-ENGINE LAND", "MULTI-ENGINE LAND",
-            "MULTI- ENGINE LAND", "MULTI-ENGINE LAND"
+            "MULTI- ENGINE LAND", "MULTI-ENGINE LAND",
+            "AIRCRAFT CATEGORY SINGLE-", "SINGLE-ENGINE LAND"
     );
 
     private final ColumnConfig[] columnConfigs;
@@ -91,9 +92,7 @@ public class TableDataTransformerService {
 
         if (isHeader) {
             String headerKey = value.toUpperCase();
-            // Canonicalize header
             value = HEADER_CANONICAL_MAP.getOrDefault(headerKey, value);
-            // Apply generic string replacements
             for (Map.Entry<String, String> repl : replacementConfig.getStringReplacements().entrySet()) {
                 value = value.replace(repl.getKey(), repl.getValue());
             }
