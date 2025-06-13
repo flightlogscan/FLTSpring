@@ -4,17 +4,10 @@
    * docker compose build
    * docker compose up
    * Make api call to `http:localhost:8080/api/{api}` e.g. `http://localhost:8080/api/ping`
-1. Build docker image locally
-   * Run `./gradlew build && docker build --platform linux/amd64 -t flightlogscan/flightlogscan:latest .`
-1. Push docker image to container registry in docker hub
-   * Requires login with `docker login`
-   * `docker push flightlogscan/flightlogscan:latest`
-     * Overrides the existing latest
-   * `docker push flightlogscan/flightlogscan:$(git rev-parse --short HEAD)`
-     * Necessary for keeping a history of images since latest gets overridden
-1. On server, run deployment script
-   * `sudo /opt/flightlogscan/bin/deploy.sh`
-1. Test change locally
+1. Push to git
+1. Let the magic of CI/CD in .github/workflows/service.yml awaken something in you
+1. Make sure change built successfully: https://github.com/flightlogscan/FLTSpring/actions
+1. Test real server api call
    * Make api call to `https://api.flightlogscan.com/api/{api}` e.g. `https://api.flightlogscan.com/api/ping`
 
 ### Server Logs
@@ -22,6 +15,8 @@
 1. Run `cat /var/log/FLTSpring/application.log`
 
 Alternatively: `sudo docker logs /flightlogscan`
+
+TODO: Need to configure centralized logging in infra repo :yuh_panic:
 
 ### Local dev setup
 1. Create `.env` file in `FLTSpring/`
