@@ -14,7 +14,6 @@ public class TableRow {
     int rowIndex;
     Map<Integer, String> columnData;
     boolean isHeader;
-    
     @Builder.Default
     Map<Integer, String> parentHeaders = new HashMap<>();
 }

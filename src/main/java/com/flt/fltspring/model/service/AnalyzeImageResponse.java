@@ -10,7 +10,6 @@ import java.util.List;
 @Builder
 public class AnalyzeImageResponse implements Serializable {
     private static final long serialVersionUID = 1L;
-    
     final List<RowDTO> tables;
     final String status;
     final String errorMessage;
