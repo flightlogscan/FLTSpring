@@ -1,8 +1,12 @@
 package com.flt.fltspring.service;
 
+import com.flt.fltspring.config.ColumnType;
 import com.flt.fltspring.model.bizlogic.TableCell;
+import com.flt.fltspring.model.bizlogic.TableStructure;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class TableUtils {
 
@@ -19,7 +23,8 @@ public class TableUtils {
 
     public static boolean isUnwanted(String text) {
         return UNWANTED_STRINGS.stream()
-                .anyMatch(un -> text.equalsIgnoreCase(un) || text.toLowerCase().contains(un.toLowerCase()));
+                .anyMatch(unwanted -> text.equalsIgnoreCase(unwanted) ||
+                        text.toLowerCase().contains(unwanted.toLowerCase()));
     }
 
     public static boolean shouldSkipRow(List<TableCell> row) {
@@ -35,5 +40,29 @@ public class TableUtils {
                 .map(TableCell::getContent)
                 .filter(c -> c != null && !c.isBlank())
                 .anyMatch(TableUtils::isUnwanted);
+    }
+
+    /**
+     * Moves the single table containing a "DATE" column to the front.
+     * Assumes only one such table will ever exist.
+     */
+    public static List<TableStructure> reorderTablesByDate(List<TableStructure> tables) {
+        for (TableStructure table : tables) {
+            final boolean hasDate = table.getCells().stream()
+                    .map(TableCell::getContent)
+                    .filter(Objects::nonNull)
+                    .map(TableUtils::clean)
+                    .anyMatch(txt -> ColumnType.DATE.name().equalsIgnoreCase(txt));
+
+            if (hasDate) {
+                final List<TableStructure> result = new ArrayList<>();
+                result.add(table);
+                for (TableStructure t : tables) {
+                    if (t != table) result.add(t);
+                }
+                return result;
+            }
+        }
+        return tables;
     }
 }

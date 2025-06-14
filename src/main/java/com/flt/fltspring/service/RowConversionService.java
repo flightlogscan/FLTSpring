@@ -16,7 +16,7 @@ public class RowConversionService {
     private static final String SUCCESS_STATUS = "SUCCESS";
 
     public AnalyzeImageResponse toRowDTO(List<TableRow> rows) {
-        List<RowDTO> dtos = rows.stream()
+        final List<RowDTO> dtos = rows.stream()
                 .filter(Objects::nonNull)
                 .map(this::toDto)
                 .toList();

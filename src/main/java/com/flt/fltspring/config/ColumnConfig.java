@@ -1,13 +1,11 @@
 package com.flt.fltspring.config;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
 
-@Data
-@NoArgsConstructor
+@Getter
 @AllArgsConstructor
 public class ColumnConfig {
-    private String fieldName;
-    private String type;
+    private final String fieldName;
+    private final ColumnType type;
 }

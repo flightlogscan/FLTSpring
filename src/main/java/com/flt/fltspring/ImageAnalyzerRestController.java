@@ -68,8 +68,10 @@ public class ImageAnalyzerRestController {
 
             final BinaryData documentData = BinaryData.fromBytes(fileBytes);
 
+            // Raw result from downstream
             final AnalyzeResult analyzeResult = documentIntelligenceDao.analyzeDocumentSync(documentData);
 
+            // Convert to our internal table models with a lightweight transform
             final List<TableStructure> tables = resultConverterService.convertToTable(analyzeResult);
 
             if (CollectionUtils.isEmpty(tables)) {
@@ -77,10 +79,13 @@ public class ImageAnalyzerRestController {
                 return buildErrorResponse("No tables detected in the document", HttpStatus.BAD_REQUEST);
             }
 
+            // Extract rows from tables
             final List<TableRow> tableRows = tableProcessorService.extractRowsFromTables(tables);
 
+            // Correct common header and cell errors (For example - '5' being read as 'S' in a number field)
             final List<TableRow> transformedRows = transformer.transformData(tableRows);
 
+            // Convert to response object - light transform just to separate internal and external models
             final AnalyzeImageResponse response = rowConversionService.toRowDTO(transformedRows);
 
             log.info("Final response structure: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));

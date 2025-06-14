@@ -4,7 +4,6 @@ import com.azure.ai.documentintelligence.models.AnalyzeResult;
 import com.azure.ai.documentintelligence.models.DocumentTable;
 import com.flt.fltspring.model.bizlogic.TableCell;
 import com.flt.fltspring.model.bizlogic.TableStructure;
-import com.flt.fltspring.model.dependency.DocumentTableCellAdapter;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -35,25 +34,19 @@ public class ResultConverterService {
     private TableStructure convertSingleTable(DocumentTable sourceTable) {
         int columnCount = sourceTable.getColumnCount();
 
-        // Adapt each DocumentTableCell into our TableCell model
-        List<TableCell> adaptedCells = sourceTable.getCells().stream()
-                .map(DocumentTableCellAdapter::new)
+        final List<TableCell> adaptedCells = sourceTable.getCells().stream()
+                .map(cell -> new TableCell() {
+                    @Override public int getRowIndex()    { return cell.getRowIndex(); }
+                    @Override public int getColumnIndex() { return cell.getColumnIndex(); }
+                    @Override public String getContent()  { return cell.getContent(); }
+                    @Override public int getColumnSpan()  { return cell.getColumnSpan() != null ?
+                            cell.getColumnSpan() : 1; }
+                })
                 .collect(Collectors.toList());
 
-        // Determine page number from bounding regions, defaulting to 0
-        int pageNumber = extractPageNumber(sourceTable);
+        final int pageNumber = sourceTable.getBoundingRegions() != null && !sourceTable.getBoundingRegions().isEmpty()
+                ? sourceTable.getBoundingRegions().getFirst().getPageNumber() : 0;
 
         return new TableStructure(columnCount, adaptedCells, pageNumber);
-    }
-
-    /**
-     * Safely extracts the page number from the table's bounding regions.
-     * @return page number of first region, or 0 if none available.
-     */
-    private int extractPageNumber(DocumentTable table) {
-        if (table.getBoundingRegions() != null && !table.getBoundingRegions().isEmpty()) {
-            return table.getBoundingRegions().getFirst().getPageNumber();
-        }
-        return 0;
     }
 }

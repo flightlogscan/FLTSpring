@@ -60,20 +60,7 @@ public class CharacterReplacementConfig {
         airportCodeReplacements.put(".", "");
 
         // Generic string replacements: same as airport codes but keep spaces
-        // stringReplacements.putAll(airportCodeReplacements);
-        stringReplacements.remove(" ");         // Allow spaces in headers/text
-        stringReplacements.remove("-");         // Allow hyphens in headers/text
-
-        // Additionally strip digits in free text (for headers only?)
-//        stringReplacements.put("0", "");
-//        stringReplacements.put("1", "");
-//        stringReplacements.put("2", "");
-//        stringReplacements.put("3", "");
-//        stringReplacements.put("4", "");
-//        stringReplacements.put("5", "");
-//        stringReplacements.put("6", "");
-//        stringReplacements.put("7", "");
-//        stringReplacements.put("8", "");
-//        stringReplacements.put("9", "");
+        stringReplacements.remove(" ");
+        stringReplacements.remove("-");
     }
 }
