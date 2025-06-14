@@ -7,17 +7,20 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class TableProcessorService {
-
-    private static final List<String> UNWANTED_STRINGS = List.of(
-            "I certify that", "TOTALS", "AMT. FORWARDED"
-    );
 
     public List<TableRow> extractRowsFromTables(List<TableStructure> tables) {
         log.info("Processing {} tables", tables.size());
@@ -28,7 +31,7 @@ public class TableProcessorService {
         int offset = 0;
 
         for (TableStructure table : orderedTables) {
-            if (shouldSkipTable(table, orderedTables)) continue;
+            if (TableUtils.shouldSkipTable(table.getCells(), orderedTables.size() <= 2)) continue;
 
             Map<Integer, List<TableCell>> rowsByIndex = table.getCells().stream()
                     .collect(Collectors.groupingBy(TableCell::getRowIndex));
@@ -40,7 +43,7 @@ public class TableProcessorService {
                     .filter(idx -> rowsByIndex.get(idx).stream()
                             .map(TableCell::getContent)
                             .filter(Objects::nonNull)
-                            .map(this::clean)
+                            .map(TableUtils::clean)
                             .anyMatch(txt -> txt.matches("\\d{1,2}/\\d{1,2}")))
                     .findFirst()
                     .orElse(2);
@@ -50,27 +53,18 @@ public class TableProcessorService {
                     .filter(idx -> rowsByIndex.get(idx).stream()
                             .map(TableCell::getContent)
                             .filter(Objects::nonNull)
-                            .map(this::clean)
-                            .noneMatch(this::isUnwanted))
+                            .map(TableUtils::clean)
+                            .noneMatch(TableUtils::isUnwanted))
                     .collect(Collectors.toList());
 
-            for (int i = 0; i < headerRows.size(); i++) {
-                for (TableCell cell : rowsByIndex.get(headerRows.get(i))) {
-                    if (cell.getContent() == null || cell.getContent().isBlank()) continue;
-                    String text = clean(cell.getContent());
-                    int startCol = cell.getColumnIndex() + offset;
-                    for (int span = 0; span < cell.getColumnSpan(); span++) {
-                        headers.put(startCol + span, text);
-                    }
-                }
-            }
+            TableHeaderExtractor.extractHeaders(headerRows, rowsByIndex, offset, headers);
 
             for (int idx : sortedRowIdx) {
                 if (idx < firstDataRow) continue;
                 List<TableCell> cells = rowsByIndex.get(idx).stream()
                         .sorted(Comparator.comparingInt(TableCell::getColumnIndex))
                         .collect(Collectors.toList());
-                if (shouldSkipRow(cells)) continue;
+                if (TableUtils.shouldSkipRow(cells)) continue;
 
                 int group = idx - firstDataRow;
                 Map<Integer, String> rowMap = rowGroups.computeIfAbsent(group, k -> new HashMap<>());
@@ -79,7 +73,7 @@ public class TableProcessorService {
                     String content = cell.getContent();
                     if (content == null || content.isBlank()) continue;
                     int globalCol = cell.getColumnIndex() + offset;
-                    rowMap.put(globalCol, clean(content));
+                    rowMap.put(globalCol, TableUtils.clean(content));
                 }
             }
 
@@ -122,41 +116,12 @@ public class TableProcessorService {
         for (TableStructure t : tables) {
             boolean hasDate = t.getCells().stream()
                     .map(TableCell::getContent)
-                    .map(this::clean)
+                    .map(TableUtils::clean)
                     .anyMatch(txt -> "DATE".equalsIgnoreCase(txt));
             (hasDate ? withDate : withoutDate).add(t);
         }
         List<TableStructure> ordered = new ArrayList<>(withDate);
         ordered.addAll(withoutDate);
         return ordered;
-    }
-
-    private boolean shouldSkipTable(TableStructure table, List<TableStructure> allTables) {
-        if (allTables.size() <= 2) return false;
-        return table.getCells().stream()
-                .map(TableCell::getContent)
-                .filter(Objects::nonNull)
-                .anyMatch(txt -> UNWANTED_STRINGS.stream()
-                        .anyMatch(un -> txt.toLowerCase().contains(un.toLowerCase())));
-    }
-
-    private boolean shouldSkipRow(List<TableCell> row) {
-        return row.stream()
-                .map(TableCell::getContent)
-                .filter(Objects::nonNull)
-                .anyMatch(txt -> UNWANTED_STRINGS.stream()
-                        .anyMatch(un -> txt.toLowerCase().contains(un.toLowerCase())));
-    }
-
-    private boolean isUnwanted(String text) {
-        return UNWANTED_STRINGS.stream()
-                .anyMatch(un -> text.equalsIgnoreCase(un) || text.toLowerCase().contains(un.toLowerCase()));
-    }
-
-    private String clean(String content) {
-        return content == null ? null :
-                content.replaceAll("\\r?\\n", " ")
-                        .replaceAll("\\s+", " ")
-                        .trim();
     }
 }
