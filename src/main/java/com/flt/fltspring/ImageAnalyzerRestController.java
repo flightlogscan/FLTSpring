@@ -88,7 +88,7 @@ public class ImageAnalyzerRestController {
             // Convert to response object - light transform just to separate internal and external models
             final AnalyzeImageResponse response = rowConversionService.toRowDTO(transformedRows);
 
-            log.info("Final response structure: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
+            log.debug("Final response structure: {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
 
             return ResponseEntity.ok(response);
 

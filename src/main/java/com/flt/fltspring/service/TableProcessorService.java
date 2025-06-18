@@ -26,9 +26,10 @@ public class TableProcessorService {
 
     public List<TableRow> extractRowsFromTables(final List<TableStructure> tables) {
         try {
-            log.info("Full input tables: {}", OBJECT_MAPPER.writeValueAsString(tables));
+            log.debug("Full input tables: {}", OBJECT_MAPPER.writeValueAsString(tables));
         } catch (Exception e) {
             log.warn("Failed to serialize input tables", e);
+            throw new RuntimeException("Failed to serialize input tables", e);
         }
 
         log.info("Processing {} tables", tables.size());
@@ -121,7 +122,7 @@ public class TableProcessorService {
         }
 
         try {
-            log.info("Full output rows: {}", OBJECT_MAPPER.writeValueAsString(result));
+            log.debug("Full output rows: {}", OBJECT_MAPPER.writeValueAsString(result));
         } catch (Exception e) {
             log.warn("Failed to serialize output rows", e);
         }
