@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * This not-quite end-to-end test checks the FLTSpring business logic for ImageAnalyzerRestController.
@@ -99,7 +100,7 @@ class FLTBizLogicTest extends UnitTestBase {
                 assertEquals(expectedVal, actualVal, "Content mismatch at row " + i + ", key: " + key);
             }
 
-            assertEquals(null, actualRow.parentHeaders(), "Parent headers mismatch at row " + i);
+            assertNull(actualRow.parentHeaders(), "Parent headers mismatch at row " + i);
         }
     }
 }

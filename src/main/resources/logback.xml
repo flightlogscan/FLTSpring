@@ -3,11 +3,17 @@
     <!-- Development Profile -->
     <springProfile name="dev">
         <property name="LOG_PATH" value="./logs"/>
+        <root level="DEBUG">
+            <appender-ref ref="Console"/>
+        </root>
     </springProfile>
 
     <!-- Production Profile -->
     <springProfile name="prod">
         <property name="LOG_PATH" value="/var/log/FLTSpring"/>
+        <root level="INFO">
+            <appender-ref ref="Console"/>
+        </root>
     </springProfile>
 
     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
@@ -16,9 +22,5 @@
         </encoder>
     </appender>
 
-    <logger name="com.giffing.bucket4j" level="DEBUG"/>
-
-    <root level="INFO">
-        <appender-ref ref="Console" />
-    </root>
+    <logger name="com.giffing.bucket4j" level="INFO"/>
 </configuration>
