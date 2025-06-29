@@ -44,7 +44,7 @@ class TableUtilsTest extends UnitTestBase {
     void reorderTablesByDate_movesDateTableFirst() {
         TableStructure table1 = new TableStructure(1, List.of(cell(0,0,"NOPE")), 1);
         TableStructure table2 = new TableStructure(1, List.of(cell(0,0,"DATE")), 1);
-        List<TableStructure> result = TableUtils.reorderTablesByDate(List.of(table1, table2));
+        List<TableStructure> result = TableUtils.reorderByDateColumn(List.of(table1, table2));
         assertThat(result.getFirst()).isSameAs(table2);
     }
 }
