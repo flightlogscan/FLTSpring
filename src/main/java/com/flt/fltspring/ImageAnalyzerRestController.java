@@ -80,7 +80,7 @@ public class ImageAnalyzerRestController {
             }
 
             // Extract rows from tables
-            final List<TableRow> tableRows = tableProcessorService.extractRowsFromTables(tables);
+            final List<TableRow> tableRows = tableProcessorService.extractRows(tables);
 
             // Correct common header and cell errors (For example - '5' being read as 'S' in a number field)
             final List<TableRow> transformedRows = transformer.transformData(tableRows);

@@ -29,9 +29,9 @@ class TableProcessorServiceTest {
 
     @Test
     void testSampleInput1() throws Exception {
-        String json = Files.readString(Path.of("src/test/resources/sample1.json"));
+        String json = Files.readString(Path.of("src/test/resources/thepilotlogbook.json"));
         List<TableStructure> tables = mapper.readValue(json, new TypeReference<>(){});
-        List<TableRow> rows = service.extractRowsFromTables(tables);
+        List<TableRow> rows = service.extractRows(tables);
 
         // We expect exactly 1 header + 1 data row
         assertEquals(2, rows.size(), "Must return 2 rows");
@@ -69,9 +69,9 @@ class TableProcessorServiceTest {
 
     @Test
     void testSampleInput2() throws Exception {
-        String json = Files.readString(Path.of("src/test/resources/sample2.json"));
+        String json = Files.readString(Path.of("src/test/resources/jeppeson.json"));
         List<TableStructure> tables = mapper.readValue(json, new TypeReference<>(){});
-        List<TableRow> rows = service.extractRowsFromTables(tables);
+        List<TableRow> rows = service.extractRows(tables);
 
         // Again, 1 header + 1 data row
         assertEquals(2, rows.size());

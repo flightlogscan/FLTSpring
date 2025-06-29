@@ -73,7 +73,7 @@ class FLTBizLogicTest extends UnitTestBase {
             AnalyzeResult analyzeResult = AnalyzeResult.fromJson(jsonReader);
 
             final List<TableStructure> tables = resultConverterService.convertToTable(analyzeResult);
-            final List<TableRow> tableRows = tableProcessorService.extractRowsFromTables(tables);
+            final List<TableRow> tableRows = tableProcessorService.extractRows(tables);
             final List<TableRow> transformed = tableDataTransformerService.transformData(tableRows);
             final AnalyzeImageResponse actualResponse = rowConversionService.toRowDTO(transformed);
 

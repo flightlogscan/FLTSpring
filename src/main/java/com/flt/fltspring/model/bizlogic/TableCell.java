@@ -1,13 +1,15 @@
 package com.flt.fltspring.model.bizlogic;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@JsonDeserialize(as = DefaultTableCell.class)
-public interface TableCell {
-    int getRowIndex();
-    int getColumnIndex();
-    String getContent();
-    default int getColumnSpan() {
-        return 1;
-    }
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class TableCell {
+    private String content;
+    private int rowIndex;
+    private int columnIndex;
+    private int columnSpan = 1;
 }
