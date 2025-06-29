@@ -76,13 +76,20 @@ tasks.named('bootBuildImage') {
 
 tasks.named('test') {
     useJUnitPlatform()
+    doLast {
+        println "✅ Unit tests completed."
+    }
 }
 
 jacocoTestReport {
     dependsOn test
     reports {
-        xml.required = true
-        html.required = true
+        xml.required.set(true)
+        html.required.set(true)
+    }
+    doLast {
+        logger.lifecycle("✅ JaCoCo XML report: ${reports.xml.outputLocation.get().asFile}")
+        logger.lifecycle("✅ JaCoCo HTML report: ${reports.html.outputLocation.get().asFile}")
     }
 }
 
