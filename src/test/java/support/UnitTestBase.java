@@ -1,6 +1,7 @@
 package support;
 
 import com.flt.fltspring.model.bizlogic.TableRow;
+import com.flt.fltspring.model.bizlogic.TableCell;
 import com.flt.fltspring.model.service.AnalyzeImageResponse;
 import com.flt.fltspring.model.service.RowDTO;
 
@@ -155,5 +156,18 @@ public class UnitTestBase {
             new TableRow(headerRow.rowIndex(), headerRow.content(), headerRow.header(), headerRow.parentHeaders()),
             new TableRow(dataRow.rowIndex(), dataRow.content(), dataRow.header(), dataRow.parentHeaders())
         );
+    }
+
+    protected TableCell cell(int row, int col, String content) {
+        return cell(row, col, content, 1);
+    }
+
+    protected TableCell cell(int row, int col, String content, int span) {
+        return new TableCell() {
+            @Override public int getRowIndex() { return row; }
+            @Override public int getColumnIndex() { return col; }
+            @Override public String getContent() { return content; }
+            @Override public int getColumnSpan() { return span; }
+        };
     }
 }
