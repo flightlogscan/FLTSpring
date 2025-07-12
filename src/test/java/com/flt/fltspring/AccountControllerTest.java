@@ -1,5 +1,7 @@
 package com.flt.fltspring;
 
+import com.google.firebase.ErrorCode;
+import com.google.firebase.FirebaseException;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import org.junit.jupiter.api.Test;
@@ -42,7 +44,7 @@ class AccountControllerTest {
         request.setAttribute(FIREBASE_EMAIL_ATTR, "a@b.com");
 
         FirebaseAuth mockAuth = mock(FirebaseAuth.class);
-        doThrow(new FirebaseAuthException("code","err"))
+        doThrow(new FirebaseAuthException(new FirebaseException(ErrorCode.INTERNAL, "error", null)))
                 .when(mockAuth).deleteUser("uid1");
 
         try (MockedStatic<FirebaseAuth> mocked = Mockito.mockStatic(FirebaseAuth.class)) {
